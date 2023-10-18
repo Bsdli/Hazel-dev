@@ -46,7 +46,7 @@ void main()
 	vec4 localPosition = boneTransform * vec4(a_Position, 1.0);
 
 	vs_Output.WorldPosition = vec3(u_Transform * boneTransform * vec4(a_Position, 1.0));
-    vs_Output.Normal = mat3(boneTransform) * a_Normal;
+    vs_Output.Normal = mat3(u_Transform) * mat3(boneTransform) * a_Normal;
 	vs_Output.TexCoord = vec2(a_TexCoord.x, 1.0 - a_TexCoord.y);
 	vs_Output.WorldNormals = mat3(u_Transform) * mat3(a_Tangent, a_Binormal, a_Normal);
 	vs_Output.Binormal = mat3(boneTransform) * a_Binormal;
@@ -68,6 +68,7 @@ const vec3 Fdielectric = vec3(0.04);
 struct Light {
 	vec3 Direction;
 	vec3 Radiance;
+	float Multiplier;
 };
 
 in VertexOutput
@@ -79,7 +80,7 @@ in VertexOutput
 	vec3 Binormal;
 } vs_Input;
 
-layout(location=0) out vec4 color;
+layout(location = 0) out vec4 color;
 
 uniform Light lights;
 uniform vec3 u_CameraPosition;
@@ -256,7 +257,7 @@ vec3 Lighting(vec3 F0)
 	for(int i = 0; i < LightCount; i++)
 	{
 		vec3 Li = -lights.Direction;
-		vec3 Lradiance = lights.Radiance;
+		vec3 Lradiance = lights.Radiance * lights.Multiplier;
 		vec3 Lh = normalize(Li + m_Params.View);
 
 		// Calculate angles between surface normal and various light vectors.
@@ -288,7 +289,7 @@ vec3 IBL(vec3 F0, vec3 Lr)
 	int u_EnvRadianceTexLevels = textureQueryLevels(u_EnvRadianceTex);
 	float NoV = clamp(m_Params.NdotV, 0.0, 1.0);
 	vec3 R = 2.0 * dot(m_Params.View, m_Params.Normal) * m_Params.Normal - m_Params.View;
-	vec3 specularIrradiance = textureLod(u_EnvRadianceTex, RotateVectorAboutY(u_EnvMapRotation, Lr), (m_Params.Roughness * m_Params.Roughness) * u_EnvRadianceTexLevels).rgb;
+	vec3 specularIrradiance = textureLod(u_EnvRadianceTex, RotateVectorAboutY(u_EnvMapRotation, Lr), (m_Params.Roughness) * u_EnvRadianceTexLevels).rgb;
 
 	// Sample BRDF Lut, 1.0 - roughness for y-coord because texture was generated (in Sparky) for gloss model
 	vec2 specularBRDF = texture(u_BRDFLUTTexture, vec2(m_Params.NdotV, 1.0 - m_Params.Roughness)).rg;
@@ -322,7 +323,7 @@ void main()
 	// Fresnel reflectance, metals use albedo
 	vec3 F0 = mix(Fdielectric, m_Params.Albedo, m_Params.Metalness);
 
-	vec3 lightContribution = vec3(0.0);//Lighting(F0);
+	vec3 lightContribution = Lighting(F0);
 	vec3 iblContribution = IBL(F0, Lr);
 
 	color = vec4(lightContribution + iblContribution, 1.0);

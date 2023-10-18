@@ -44,7 +44,7 @@ namespace ImGuizmo
    static const float ZPI = 3.14159265358979323846f;
    static const float RAD2DEG = (180.f / ZPI);
    static const float DEG2RAD = (ZPI / 180.f);
-   static const float gGizmoSizeClipSpace = 0.1f;
+   static const float gGizmoSizeClipSpace = 0.15f;
    const float screenRotateSize = 0.06f;
 
    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1261,12 +1261,13 @@ namespace ImGuizmo
 
    static bool CanActivate()
    {
-	   // Check for modifiers
-	   if (Hazel::Input::IsKeyPressed(HZ_KEY_LEFT_ALT) || Hazel::Input::IsKeyPressed(HZ_KEY_LEFT_SHIFT) || Hazel::Input::IsKeyPressed(HZ_KEY_LEFT_CONTROL))
-		   return false;
+       // Check for modifiers
+       if (Hazel::Input::IsKeyPressed(HZ_KEY_LEFT_ALT) || Hazel::Input::IsKeyPressed(HZ_KEY_LEFT_SHIFT) || Hazel::Input::IsKeyPressed(HZ_KEY_LEFT_CONTROL))
+           return false;
 
       if (ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemHovered() && !ImGui::IsAnyItemActive())
          return true;
+
       return false;
    }
 

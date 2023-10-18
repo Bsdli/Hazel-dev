@@ -42,10 +42,11 @@ namespace Hazel {
 			glTextureParameterf(m_RendererID, GL_TEXTURE_MAX_ANISOTROPY, RendererAPI::GetCapabilities().MaxAnisotropy);
 
 			glTexImage2D(GL_TEXTURE_2D, 0, HazelToOpenGLTextureFormat(m_Format), m_Width, m_Height, 0, HazelToOpenGLTextureFormat(m_Format), GL_UNSIGNED_BYTE, nullptr);
-			glGenerateMipmap(GL_TEXTURE_2D);
 
 			glBindTexture(GL_TEXTURE_2D, 0);
 		});
+
+		m_ImageData.Allocate(width * height * Texture::GetBPP(m_Format));
 	}
 
 	OpenGLTexture2D::OpenGLTexture2D(const std::string& path, bool srgb)
@@ -182,7 +183,7 @@ namespace Hazel {
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 			// glTextureParameterf(m_RendererID, GL_TEXTURE_MAX_ANISOTROPY, 16);
-			});
+		});
 	}
 
 	OpenGLTextureCube::OpenGLTextureCube(const std::string& path)

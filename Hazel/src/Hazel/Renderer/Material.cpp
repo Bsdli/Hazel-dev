@@ -45,8 +45,9 @@ namespace Hazel {
 
 	void Material::OnShaderReloaded()
 	{
+		return;
 		AllocateStorage();
-
+		
 		for (auto mi : m_MaterialInstances)
 			mi->OnShaderReloaded();
 	}
@@ -90,8 +91,8 @@ namespace Hazel {
 	{
 		switch (uniformDeclaration->GetDomain())
 		{
-		case ShaderDomain::Vertex:    return m_VSUniformStorageBuffer;
-		case ShaderDomain::Pixel:     return m_PSUniformStorageBuffer;
+			case ShaderDomain::Vertex:    return m_VSUniformStorageBuffer;
+			case ShaderDomain::Pixel:     return m_PSUniformStorageBuffer;
 		}
 
 		HZ_CORE_ASSERT(false, "Invalid uniform declaration domain! Material does not support this shader type.");
@@ -191,8 +192,8 @@ namespace Hazel {
 	{
 		switch (uniformDeclaration->GetDomain())
 		{
-		case ShaderDomain::Vertex:    return m_VSUniformStorageBuffer;
-		case ShaderDomain::Pixel:     return m_PSUniformStorageBuffer;
+			case ShaderDomain::Vertex:    return m_VSUniformStorageBuffer;
+			case ShaderDomain::Pixel:     return m_PSUniformStorageBuffer;
 		}
 
 		HZ_CORE_ASSERT(false, "Invalid uniform declaration domain! Material does not support this shader type.");

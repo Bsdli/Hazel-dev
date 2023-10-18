@@ -31,8 +31,9 @@ namespace Hazel {
 
 		virtual void OnUpdate() = 0;
 
-		virtual unsigned int GetWidth() const = 0;
-		virtual unsigned int GetHeight() const = 0;
+		virtual uint32_t GetWidth() const = 0;
+		virtual uint32_t GetHeight() const = 0;
+		virtual std::pair<uint32_t, uint32_t> GetSize() const = 0;
 		virtual std::pair<float, float> GetWindowPos() const = 0;
 
 

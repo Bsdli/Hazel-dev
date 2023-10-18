@@ -23,7 +23,7 @@ namespace Hazel {
 
 		m_Window = std::unique_ptr<Window>(Window::Create(WindowProps(props.Name, props.WindowWidth, props.WindowHeight)));
 		m_Window->SetEventCallback(BIND_EVENT_FN(OnEvent));
-		m_Window->SetVSync(false);
+		m_Window->SetVSync(true);
 
 		m_ImGuiLayer = new ImGuiLayer("ImGui");
 		PushOverlay(m_ImGuiLayer);

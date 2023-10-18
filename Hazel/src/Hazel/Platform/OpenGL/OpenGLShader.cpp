@@ -48,10 +48,10 @@ namespace Hazel {
 		if (!m_IsCompute)
 			Parse();
 
-		Renderer::Submit([this]()
+		Renderer::Submit([=]()
 		{
 			if (m_RendererID)
-				glDeleteShader(m_RendererID);
+				glDeleteProgram(m_RendererID);
 
 			CompileAndUploadShader();
 			if (!m_IsCompute)
@@ -258,6 +258,7 @@ namespace Hazel {
 	static bool IsTypeStringResource(const std::string& type)
 	{
 		if (type == "sampler2D")		return true;
+		if (type == "sampler2DMS")		return true;
 		if (type == "samplerCube")		return true;
 		if (type == "sampler2DShadow")	return true;
 		return false;
@@ -793,6 +794,13 @@ namespace Hazel {
 		});
 	}
 
+	void OpenGLShader::SetInt(const std::string& name, int value)
+	{
+		Renderer::Submit([=]() {
+			UploadUniformInt(name, value);
+		});
+	}
+
 	void OpenGLShader::SetMat4(const std::string& name, const glm::mat4& value)
 	{
 		Renderer::Submit([=]() {
@@ -812,6 +820,13 @@ namespace Hazel {
 			if (location != -1)
 				UploadUniformMat4(location, value);
 		}
+	}
+
+	void OpenGLShader::SetIntArray(const std::string& name, int* values, uint32_t size)
+	{
+		Renderer::Submit([=]() {
+			UploadUniformIntArray(name, values, size);
+		});
 	}
 
 	void OpenGLShader::UploadUniformInt(uint32_t location, int32_t value)
@@ -877,7 +892,7 @@ namespace Hazel {
 		glUniform1i(location, value);
 	}
 
-	void OpenGLShader::UploadUniformIntArray(const std::string& name, int32_t* values, int32_t count)
+	void OpenGLShader::UploadUniformIntArray(const std::string& name, int32_t* values, uint32_t count)
 	{
 		int32_t location = GetUniformLocation(name);
 		glUniform1iv(location, count, values);

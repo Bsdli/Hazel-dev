@@ -19,6 +19,7 @@ namespace Hazel {
 		uint32_t Height = 720;
 		glm::vec4 ClearColor;
 		FramebufferFormat Format;
+		uint32_t Samples = 1; // multisampling
 		
 		// SwapChainTarget = screen buffer (i.e. no framebuffer)
 		bool SwapChainTarget = false;
@@ -31,7 +32,7 @@ namespace Hazel {
 		virtual void Bind() const = 0;
 		virtual void Unbind() const = 0;
 
-		virtual void Resize(uint32_t width, uint32_t height) = 0;
+		virtual void Resize(uint32_t width, uint32_t height, bool forceRecreate = false) = 0;
 
 		virtual void BindTexture(uint32_t slot = 0) const = 0;
 

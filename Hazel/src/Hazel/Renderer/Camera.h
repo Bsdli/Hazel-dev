@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Hazel/Core/Timestep.h"
+#include "Hazel/Core/Events/MouseEvent.h"
 
 #include <glm/glm.hpp>
 
@@ -13,7 +14,8 @@ namespace Hazel {
 		Camera(const glm::mat4& projectionMatrix);
 
 		void Focus();
-		void Update(Timestep ts);
+		void OnUpdate(Timestep ts);
+		void OnEvent(Event& e);
 
 		inline float GetDistance() const { return m_Distance; }
 		inline void SetDistance(float distance) { m_Distance = distance; }
@@ -23,6 +25,7 @@ namespace Hazel {
 
 		const glm::mat4& GetProjectionMatrix() const { return m_ProjectionMatrix; }
 		const glm::mat4& GetViewMatrix() const { return m_ViewMatrix; }
+		const glm::mat4& GetViewProjection() const { return m_ProjectionMatrix * m_ViewMatrix; }
 
 		glm::vec3 GetUpDirection();
 		glm::vec3 GetRightDirection();
@@ -32,6 +35,10 @@ namespace Hazel {
 		float GetExposure() const { return m_Exposure; }
 		float& GetExposure() { return m_Exposure; }
 	private:
+		void UpdateCameraView();
+
+		bool OnMouseScroll(MouseScrolledEvent& e);
+
 		void MousePan(const glm::vec2& delta);
 		void MouseRotate(const glm::vec2& delta);
 		void MouseZoom(float delta);
@@ -52,9 +59,9 @@ namespace Hazel {
 
 		float m_Distance;
 		float m_Pitch, m_Yaw;
-		
-		float m_Exposure = 0.8f;
 
+		float m_Exposure = 0.8f;
+		
 		uint32_t m_ViewportWidth = 1280, m_ViewportHeight = 720;
 	};
 

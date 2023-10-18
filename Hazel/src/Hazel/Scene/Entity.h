@@ -9,7 +9,6 @@ namespace Hazel {
 	class Entity
 	{
 	public:
-		Entity();
 		~Entity();
 
 		// TODO: Move to Component
@@ -21,12 +20,19 @@ namespace Hazel {
 
 		const glm::mat4& GetTransform() const { return m_Transform; }
 		glm::mat4& Transform() { return m_Transform; }
+
+		const std::string& GetName() const { return m_Name; }
 	private:
+		Entity(const std::string& name);
+	private:
+		std::string m_Name;
 		glm::mat4 m_Transform;
 
 		// TODO: Temp
 		Ref<Mesh> m_Mesh;
 		Ref<MaterialInstance> m_Material;
+
+		friend class Scene;
 	};
 
 }

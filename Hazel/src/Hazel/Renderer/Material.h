@@ -11,9 +11,9 @@ namespace Hazel {
 
 	enum class MaterialFlag
 	{
-		None = BIT(0),
-		DepthTest = BIT(1),
-		Blend = BIT(2)
+		None       = BIT(0),
+		DepthTest  = BIT(1),
+		Blend      = BIT(2)
 	};
 
 	class Material

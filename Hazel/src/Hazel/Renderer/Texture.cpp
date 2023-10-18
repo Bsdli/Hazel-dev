@@ -40,8 +40,8 @@ namespace Hazel {
 	{
 		switch (RendererAPI::Current())
 		{
-		case RendererAPIType::None: return nullptr;
-		case RendererAPIType::OpenGL: return CreateRef<OpenGLTextureCube>(path);
+			case RendererAPIType::None: return nullptr;
+			case RendererAPIType::OpenGL: return CreateRef<OpenGLTextureCube>(path);
 		}
 		return nullptr;
 	}

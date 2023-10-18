@@ -10,7 +10,7 @@ namespace Hazel {
 		OpenGLFramebuffer(const FramebufferSpecification& spec);
 		virtual ~OpenGLFramebuffer();
 
-		virtual void Resize(uint32_t width, uint32_t height) override;
+		virtual void Resize(uint32_t width, uint32_t height, bool forceRecreate = false) override;
 
 		virtual void Bind() const override;
 		virtual void Unbind() const override;
@@ -25,7 +25,7 @@ namespace Hazel {
 	private:
 		FramebufferSpecification m_Specification;
 		RendererID m_RendererID = 0;
-		RendererID m_ColorAttachment, m_DepthAttachment;
+		RendererID m_ColorAttachment = 0, m_DepthAttachment = 0;
 	};
 
 }

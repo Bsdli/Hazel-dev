@@ -7,6 +7,8 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "Renderer2D.h"
+
 namespace Hazel {
 
 	struct SceneRendererData
@@ -19,6 +21,7 @@ namespace Hazel {
 			// Resources
 			Ref<MaterialInstance> SkyboxMaterial;
 			Environment SceneEnvironment;
+			Light ActiveLight;
 		} SceneData;
 
 		Ref<Texture2D> BRDFLUT;
@@ -37,6 +40,8 @@ namespace Hazel {
 
 		// Grid
 		Ref<MaterialInstance> GridMaterial;
+
+		SceneRendererOptions Options;
 	};
 
 	static SceneRendererData s_Data;
@@ -47,6 +52,7 @@ namespace Hazel {
 		geoFramebufferSpec.Width = 1280;
 		geoFramebufferSpec.Height = 720;
 		geoFramebufferSpec.Format = FramebufferFormat::RGBA16F;
+		geoFramebufferSpec.Samples = 8;
 		geoFramebufferSpec.ClearColor = { 0.1f, 0.1f, 0.1f, 1.0f };
 
 		RenderPassSpecification geoRenderPassSpec;
@@ -63,7 +69,7 @@ namespace Hazel {
 		compRenderPassSpec.TargetFramebuffer = Hazel::Framebuffer::Create(compFramebufferSpec);
 		s_Data.CompositePass = RenderPass::Create(compRenderPassSpec);
 
-		s_Data.CompositeShader = Shader::Create("assets/shaders/hdr.glsl");
+		s_Data.CompositeShader = Shader::Create("assets/shaders/SceneComposite.glsl");
 		s_Data.BRDFLUT = Texture2D::Create("assets/textures/BRDF_LUT.tga");
 
 		// Grid
@@ -89,6 +95,7 @@ namespace Hazel {
 		s_Data.SceneData.SceneCamera = scene->m_Camera;
 		s_Data.SceneData.SkyboxMaterial = scene->m_SkyboxMaterial;
 		s_Data.SceneData.SceneEnvironment = scene->m_Environment;
+		s_Data.SceneData.ActiveLight = scene->m_Light;
 	}
 
 	void SceneRenderer::EndScene()
@@ -130,7 +137,7 @@ namespace Hazel {
 		{
 			glBindImageTexture(0, envUnfiltered->GetRendererID(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
 			glDispatchCompute(cubemapSize / 32, cubemapSize / 32, 6);
-			glGenerateTextureMipmap(envUnfiltered->GetRendererID());
+			glGenerateTextureMipmap(envUnfiltered->GetRendererID());		
 		});
 
 
@@ -170,6 +177,7 @@ namespace Hazel {
 		{
 				glBindImageTexture(0, irradianceMap->GetRendererID(), 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
 				glDispatchCompute(irradianceMap->GetWidth() / 32, irradianceMap->GetHeight() / 32, 6);
+				glGenerateTextureMipmap(irradianceMap->GetRendererID());
 		});
 
 		return { envFiltered, irradianceMap };
@@ -179,12 +187,11 @@ namespace Hazel {
 	{
 		Renderer::BeginRenderPass(s_Data.GeoPass);
 
-		auto viewProjection = s_Data.SceneData.SceneCamera.GetProjectionMatrix() * s_Data.SceneData.SceneCamera.GetViewMatrix();
+		auto viewProjection = s_Data.SceneData.SceneCamera.GetViewProjection();
 
 		// Skybox
 		auto skyboxShader = s_Data.SceneData.SkyboxMaterial->GetShader();
 		s_Data.SceneData.SkyboxMaterial->Set("u_InverseVP", glm::inverse(viewProjection));
-		// s_Data.SceneInfo.EnvironmentIrradianceMap->Bind(0);
 		Renderer::SubmitFullscreenQuad(s_Data.SceneData.SkyboxMaterial);
 
 		// Render entities
@@ -199,13 +206,27 @@ namespace Hazel {
 			baseMaterial->Set("u_EnvIrradianceTex", s_Data.SceneData.SceneEnvironment.IrradianceMap);
 			baseMaterial->Set("u_BRDFLUTTexture", s_Data.BRDFLUT);
 
+			// Set lights (TODO: move to light environment and don't do per mesh)
+			baseMaterial->Set("lights", s_Data.SceneData.ActiveLight);
+
 			auto overrideMaterial = nullptr; // dc.Material;
 			Renderer::SubmitMesh(dc.Mesh, dc.Transform, overrideMaterial);
 		}
 
 		// Grid
-		s_Data.GridMaterial->Set("u_ViewProjection", viewProjection);
-		Renderer::SubmitQuad(s_Data.GridMaterial, glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(16.0f)));
+		if (GetOptions().ShowGrid)
+		{
+			s_Data.GridMaterial->Set("u_ViewProjection", viewProjection);
+			Renderer::SubmitQuad(s_Data.GridMaterial, glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(16.0f)));
+		}
+
+		if (GetOptions().ShowBoundingBoxes)
+		{
+			Renderer2D::BeginScene(viewProjection);
+			for (auto& dc : s_Data.DrawList)
+				Renderer::DrawAABB(dc.Mesh, dc.Transform);
+			Renderer2D::EndScene();
+		}
 
 		Renderer::EndRenderPass();
 	}
@@ -215,6 +236,7 @@ namespace Hazel {
 		Renderer::BeginRenderPass(s_Data.CompositePass);
 		s_Data.CompositeShader->Bind();
 		s_Data.CompositeShader->SetFloat("u_Exposure", s_Data.SceneData.SceneCamera.GetExposure());
+		s_Data.CompositeShader->SetInt("u_TextureSamples", s_Data.GeoPass->GetSpecification().TargetFramebuffer->GetSpecification().Samples);
 		s_Data.GeoPass->GetSpecification().TargetFramebuffer->BindTexture();
 		Renderer::SubmitFullscreenQuad(nullptr);
 		Renderer::EndRenderPass();
@@ -238,9 +260,19 @@ namespace Hazel {
 		return nullptr;
 	}
 
+	Ref<RenderPass> SceneRenderer::GetFinalRenderPass()
+	{
+		return s_Data.CompositePass;
+	}
+
 	uint32_t SceneRenderer::GetFinalColorBufferRendererID()
 	{
 		return s_Data.CompositePass->GetSpecification().TargetFramebuffer->GetColorAttachmentRendererID();
+	}
+
+	SceneRendererOptions& SceneRenderer::GetOptions()
+	{
+		return s_Data.Options;
 	}
 
 }
