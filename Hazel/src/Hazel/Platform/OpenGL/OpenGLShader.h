@@ -27,6 +27,7 @@ namespace Hazel {
 
 		virtual void SetFloat(const std::string& name, float value) override;
 		virtual void SetInt(const std::string& name, int value) override;
+		virtual void SetFloat3(const std::string& name, const glm::vec3& value) override;
 		virtual void SetMat4(const std::string& name, const glm::mat4& value) override;
 		virtual void SetMat4FromRenderThread(const std::string& name, const glm::mat4& value, bool bind = true) override;
 
@@ -50,7 +51,7 @@ namespace Hazel {
 		void CompileAndUploadShader();
 		static GLenum ShaderTypeFromString(const std::string& type);
 
-		void ResolveAndSetUniforms(const Scope<OpenGLShaderUniformBufferDeclaration>& decl, Buffer buffer);
+		void ResolveAndSetUniforms(const Ref<OpenGLShaderUniformBufferDeclaration>& decl, Buffer buffer);
 		void ResolveAndSetUniform(OpenGLShaderUniformDeclaration* uniform, Buffer buffer);
 		void ResolveAndSetUniformArray(OpenGLShaderUniformDeclaration* uniform, Buffer buffer);
 		void ResolveAndSetUniformField(const OpenGLShaderUniformDeclaration& field, byte* data, int32_t offset);
@@ -96,8 +97,8 @@ namespace Hazel {
 
 		ShaderUniformBufferList m_VSRendererUniformBuffers;
 		ShaderUniformBufferList m_PSRendererUniformBuffers;
-		Scope<OpenGLShaderUniformBufferDeclaration> m_VSMaterialUniformBuffer;
-		Scope<OpenGLShaderUniformBufferDeclaration> m_PSMaterialUniformBuffer;
+		Ref<OpenGLShaderUniformBufferDeclaration> m_VSMaterialUniformBuffer;
+		Ref<OpenGLShaderUniformBufferDeclaration> m_PSMaterialUniformBuffer;
 		ShaderResourceList m_Resources;
 		ShaderStructList m_Structs;
 

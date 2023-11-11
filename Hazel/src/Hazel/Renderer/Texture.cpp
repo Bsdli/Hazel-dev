@@ -11,7 +11,7 @@ namespace Hazel {
 		switch (RendererAPI::Current())
 		{
 			case RendererAPIType::None: return nullptr;
-			case RendererAPIType::OpenGL: return CreateRef<OpenGLTexture2D>(format, width, height, wrap);
+			case RendererAPIType::OpenGL: return Ref<OpenGLTexture2D>::Create(format, width, height, wrap);
 		}
 		return nullptr;
 	}
@@ -21,7 +21,7 @@ namespace Hazel {
 		switch (RendererAPI::Current())
 		{
 			case RendererAPIType::None: return nullptr;
-			case RendererAPIType::OpenGL: return CreateRef<OpenGLTexture2D>(path, srgb);
+			case RendererAPIType::OpenGL: return Ref<OpenGLTexture2D>::Create(path, srgb);
 		}
 		return nullptr;
 	}
@@ -31,7 +31,7 @@ namespace Hazel {
 		switch (RendererAPI::Current())
 		{
 			case RendererAPIType::None: return nullptr;
-			case RendererAPIType::OpenGL: return CreateRef<OpenGLTextureCube>(format, width, height);
+			case RendererAPIType::OpenGL: return Ref<OpenGLTextureCube>::Create(format, width, height);
 		}
 		return nullptr;
 	}
@@ -41,7 +41,7 @@ namespace Hazel {
 		switch (RendererAPI::Current())
 		{
 			case RendererAPIType::None: return nullptr;
-			case RendererAPIType::OpenGL: return CreateRef<OpenGLTextureCube>(path);
+			case RendererAPIType::OpenGL: return Ref<OpenGLTextureCube>::Create(path);
 		}
 		return nullptr;
 	}

@@ -9,7 +9,7 @@ namespace Hazel {
 
 	Ref<Material> Material::Create(const Ref<Shader>& shader)
 	{
-		return std::make_shared<Material>(shader);
+		return Ref<Material>::Create(shader);
 	}
 
 	Material::Material(const Ref<Shader>& shader)
@@ -99,7 +99,7 @@ namespace Hazel {
 		return m_VSUniformStorageBuffer;
 	}
 
-	void Material::Bind() const
+	void Material::Bind()
 	{
 		m_Shader->Bind();
 
@@ -112,7 +112,7 @@ namespace Hazel {
 		BindTextures();
 	}
 
-	void Material::BindTextures() const
+	void Material::BindTextures()
 	{
 		for (size_t i = 0; i < m_Textures.size(); i++)
 		{
@@ -128,7 +128,7 @@ namespace Hazel {
 
 	Ref<MaterialInstance> MaterialInstance::Create(const Ref<Material>& material)
 	{
-		return std::make_shared<MaterialInstance>(material);
+		return Ref<MaterialInstance>::Create(material);
 	}
 
 	MaterialInstance::MaterialInstance(const Ref<Material>& material)
@@ -200,7 +200,7 @@ namespace Hazel {
 		return m_VSUniformStorageBuffer;
 	}
 
-	void MaterialInstance::Bind() const
+	void MaterialInstance::Bind()
 	{
 		m_Material->m_Shader->Bind();
 

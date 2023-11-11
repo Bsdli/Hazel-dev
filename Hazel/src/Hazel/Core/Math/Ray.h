@@ -10,6 +10,17 @@ namespace Hazel {
     {
         glm::vec3 Origin, Direction;
 
+        Ray(const glm::vec3& origin, const glm::vec3& direction)
+        {
+            Origin = origin;
+            Direction = direction;
+        }
+
+        static Ray Zero()
+        {
+            return { {0.0f, 0.0f, 0.0f},{0.0f, 0.0f, 0.0f} };
+        }
+
         bool IntersectsAABB(const AABB& aabb, float& t) const
         {
             glm::vec3 dirfrac;

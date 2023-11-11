@@ -45,7 +45,7 @@ namespace ImGuizmo
    static const float RAD2DEG = (180.f / ZPI);
    static const float DEG2RAD = (ZPI / 180.f);
    static const float gGizmoSizeClipSpace = 0.15f;
-   const float screenRotateSize = 0.06f;
+   const float screenRotateSize = 0.04f;
 
    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
    // utility and math
@@ -678,11 +678,12 @@ namespace ImGuizmo
    static const float planeLimit = 0.2f;
 
    static const vec_t directionUnary[3] = { makeVect(1.f, 0.f, 0.f), makeVect(0.f, 1.f, 0.f), makeVect(0.f, 0.f, 1.f) };
-   static const ImU32 directionColor[3] = { 0xFF4444AA, 0xFF44AA44, 0xFFAA4444 };
+   static const ImU32 directionColor[3] = { 0xFF715ED8, 0xFF25AA25, 0xFFCC532C };
 
    // Alpha: 100%: FF, 87%: DE, 70%: B3, 54%: 8A, 50%: 80, 38%: 61, 12%: 1F
-   static const ImU32 planeColor[3] = { 0x610000AA, 0x6100AA00, 0x61AA0000 };
-   static const ImU32 selectionColor = 0x8A1080FF;
+   //static const ImU32 planeColor[3] = { 0x610000AA, 0x6100AA00, 0x61AA0000 };
+   static const ImU32 planeColor[3] = { 0xFF7A68D8, 0xFF55AB55, 0xFFD96742 };
+   static const ImU32 selectionColor = 0xFF20AACC;
    static const ImU32 inactiveColor = 0x99999999;
    static const ImU32 translationLineColor = 0xAAAAAAAA;
    static const char *translationInfoMask[] = { "X : %5.3f", "Y : %5.3f", "Z : %5.3f",
@@ -1056,11 +1057,13 @@ namespace ImGuizmo
 
       gContext.mRadiusSquareCenter = screenRotateSize * gContext.mHeight;
 
+      constexpr float circleLineThickness = 6.0f;
+      constexpr float lineThickness = 6.0f;
      for (int axis = 0; axis < 3; axis++)
       {
          ImVec2 circlePos[halfCircleSegmentCount];
 
-         float angleStart = atan2f(cameraToModelNormalized[(4-axis)%3], cameraToModelNormalized[(3 - axis) % 3]) + ZPI * 0.5f;
+         float angleStart = atan2f(cameraToModelNormalized[(4-axis)%3], cameraToModelNormalized[(3 - axis) % 3]) + ZPI * 0.5f + 0.25f;
 
          for (unsigned int i = 0; i < halfCircleSegmentCount; i++)
          {
@@ -1074,9 +1077,9 @@ namespace ImGuizmo
          if(radiusAxis > gContext.mRadiusSquareCenter)
            gContext.mRadiusSquareCenter = radiusAxis;
 
-         drawList->AddPolyline(circlePos, halfCircleSegmentCount, colors[3 - axis], false, 2);
+         drawList->AddPolyline(circlePos, halfCircleSegmentCount, colors[3 - axis], false, lineThickness);
       }
-      drawList->AddCircle(worldToPos(gContext.mModel.v.position, gContext.mViewProjection), gContext.mRadiusSquareCenter, colors[0], 64, 3.f);
+      drawList->AddCircle(worldToPos(gContext.mModel.v.position, gContext.mViewProjection), gContext.mRadiusSquareCenter * 1.1f, colors[0], 64, circleLineThickness);
 
       if (gContext.mbUsing)
       {
@@ -1128,6 +1131,8 @@ namespace ImGuizmo
       if (gContext.mbUsing)
          scaleDisplay = gContext.mScale;
 
+      constexpr float lineThickness = 6.0f;
+      constexpr float circleSize = 12.0f;
       for (unsigned int i = 0; i < 3; i++)
       {
         vec_t dirPlaneX, dirPlaneY, dirAxis;
@@ -1143,15 +1148,15 @@ namespace ImGuizmo
 
             if (gContext.mbUsing)
             {
-               drawList->AddLine(baseSSpace, worldDirSSpaceNoScale, 0xFF404040, 3.f);
-               drawList->AddCircleFilled(worldDirSSpaceNoScale, 6.f, 0xFF404040);
+               drawList->AddLine(baseSSpace, worldDirSSpaceNoScale, 0xFF404040, lineThickness);
+               drawList->AddCircleFilled(worldDirSSpaceNoScale, circleSize, 0xFF404040);
             }
 
-            drawList->AddLine(baseSSpace, worldDirSSpace, colors[i + 1], 3.f);
-            drawList->AddCircleFilled(worldDirSSpace, 6.f, colors[i + 1]);
+            drawList->AddLine(baseSSpace, worldDirSSpace, colors[i + 1], lineThickness);
+            drawList->AddCircleFilled(worldDirSSpace, circleSize, colors[i + 1]);
 
-            if (gContext.mAxisFactor[i] < 0.f)
-               DrawHatchedAxis(dirAxis * scaleDisplay[i]);
+            // if (gContext.mAxisFactor[i] < 0.f)
+            //    DrawHatchedAxis(dirAxis * scaleDisplay[i]);
          }
       }
 
@@ -1178,7 +1183,6 @@ namespace ImGuizmo
       }
    }
 
-
    static void DrawTranslationGizmo(int type)
    {
       ImDrawList* drawList = gContext.mDrawList;
@@ -1194,6 +1198,8 @@ namespace ImGuizmo
       // draw
       bool belowAxisLimit = false;
       bool belowPlaneLimit = false;
+      constexpr float arrowSize = 12.0f;
+      constexpr float lineThickness = 6.0f;
       for (unsigned int i = 0; i < 3; ++i)
       {
          vec_t dirPlaneX, dirPlaneY, dirAxis;
@@ -1205,22 +1211,22 @@ namespace ImGuizmo
             ImVec2 baseSSpace = worldToPos(dirAxis * 0.1f * gContext.mScreenFactor, gContext.mMVP);
             ImVec2 worldDirSSpace = worldToPos(dirAxis * gContext.mScreenFactor, gContext.mMVP);
 
-            drawList->AddLine(baseSSpace, worldDirSSpace, colors[i + 1], 3.f);
+            drawList->AddLine(baseSSpace, worldDirSSpace, colors[i + 1], lineThickness);
 
             // Arrow head begin
             ImVec2 dir(origin - worldDirSSpace);
 
             float d = sqrtf(ImLengthSqr(dir));
             dir /= d; // Normalize
-            dir *= 6.0f;
+            dir *= arrowSize;
 
-            ImVec2 ortogonalDir(dir.y, -dir.x); // Perpendicular vector
+            ImVec2 ortogonalDir(dir.y * 0.8f, -dir.x * 0.8f); // Perpendicular vector
             ImVec2 a(worldDirSSpace + dir);
             drawList->AddTriangleFilled(worldDirSSpace - dir, a + ortogonalDir, a - ortogonalDir, colors[i + 1]);
             // Arrow head end
 
-            if (gContext.mAxisFactor[i] < 0.f)
-               DrawHatchedAxis(dirAxis);
+            //if (gContext.mAxisFactor[i] < 0.f)
+            //   DrawHatchedAxis(dirAxis);
          }
 
          // draw plane
@@ -1558,31 +1564,32 @@ namespace ImGuizmo
 
       vec_t deltaScreen = { io.MousePos.x - gContext.mScreenSquareCenter.x, io.MousePos.y - gContext.mScreenSquareCenter.y, 0.f, 0.f };
       float dist = deltaScreen.Length();
-      if (dist >= (gContext.mRadiusSquareCenter - 1.0f) && dist < (gContext.mRadiusSquareCenter + 1.0f))
+      if (dist >= (gContext.mRadiusSquareCenter * 1.1f - 3.0f) && dist < (gContext.mRadiusSquareCenter * 1.1f + 2.0f))
          type = ROTATE_SCREEN;
 
       const vec_t planNormals[] = { gContext.mModel.v.right, gContext.mModel.v.up, gContext.mModel.v.dir};
 
       for (unsigned int i = 0; i < 3 && type == NONE; i++)
       {
-         // pickup plan
-         vec_t pickupPlan = BuildPlan(gContext.mModel.v.position, planNormals[i]);
+            // pickup plan
+            vec_t pickupPlan = BuildPlan(gContext.mModel.v.position, planNormals[i]);
 
-         const float len = IntersectRayPlane(gContext.mRayOrigin, gContext.mRayVector, pickupPlan);
-         vec_t localPos = gContext.mRayOrigin + gContext.mRayVector * len - gContext.mModel.v.position;
+            const float len = IntersectRayPlane(gContext.mRayOrigin, gContext.mRayVector, pickupPlan);
+            vec_t localPos = gContext.mRayOrigin + gContext.mRayVector * len - gContext.mModel.v.position;
 
-         if (Dot(Normalized(localPos), gContext.mRayVector) > FLT_EPSILON)
-            continue;
-       vec_t idealPosOnCircle = Normalized(localPos);
-       idealPosOnCircle.TransformVector(gContext.mModelInverse);
-       ImVec2 idealPosOnCircleScreen = worldToPos(idealPosOnCircle * gContext.mScreenFactor, gContext.mMVP);
+            if (Dot(Normalized(localPos), gContext.mRayVector) > FLT_EPSILON)
+                continue;
 
-       //gContext.mDrawList->AddCircle(idealPosOnCircleScreen, 5.f, 0xFFFFFFFF);
-       ImVec2 distanceOnScreen = idealPosOnCircleScreen - io.MousePos;
+            vec_t idealPosOnCircle = Normalized(localPos);
+            idealPosOnCircle.TransformVector(gContext.mModelInverse);
+            ImVec2 idealPosOnCircleScreen = worldToPos(idealPosOnCircle * gContext.mScreenFactor, gContext.mMVP);
 
-         float distance = makeVect(distanceOnScreen).Length();
-         if (distance < 8.f) // pixel size
-            type = ROTATE_X + i;
+            // gContext.mDrawList->AddCircle(idealPosOnCircleScreen, 5.f, 0xFFFFFFFF);
+            ImVec2 distanceOnScreen = idealPosOnCircleScreen - io.MousePos;
+
+            float distance = makeVect(distanceOnScreen).Length();
+            if (distance < 10.f) // pixel size
+                type = ROTATE_X + i;
       }
 
       return type;

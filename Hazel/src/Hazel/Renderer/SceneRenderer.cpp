@@ -86,13 +86,13 @@ namespace Hazel {
 		s_Data.CompositePass->GetSpecification().TargetFramebuffer->Resize(width, height);
 	}
 
-	void SceneRenderer::BeginScene(const Scene* scene)
+	void SceneRenderer::BeginScene(const Scene* scene, const Camera& camera)
 	{
 		HZ_CORE_ASSERT(!s_Data.ActiveScene, "");
 
 		s_Data.ActiveScene = scene;
 
-		s_Data.SceneData.SceneCamera = scene->m_Camera;
+		s_Data.SceneData.SceneCamera = camera;
 		s_Data.SceneData.SkyboxMaterial = scene->m_SkyboxMaterial;
 		s_Data.SceneData.SceneEnvironment = scene->m_Environment;
 		s_Data.SceneData.ActiveLight = scene->m_Light;
@@ -107,15 +107,10 @@ namespace Hazel {
 		FlushDrawList();
 	}
 
-	void SceneRenderer::SubmitEntity(Entity* entity)
+	void SceneRenderer::SubmitMesh(Ref<Mesh> mesh, const glm::mat4& transform, Ref<MaterialInstance> overrideMaterial)
 	{
 		// TODO: Culling, sorting, etc.
-
-		auto mesh = entity->GetMesh();
-		if (!mesh)
-			return;
-
-		s_Data.DrawList.push_back({ mesh, entity->GetMaterial(), entity->GetTransform() });
+		s_Data.DrawList.push_back({ mesh, overrideMaterial, transform });
 	}
 
 	static Ref<Shader> equirectangularConversionShader, envFilteringShader, envIrradianceShader;
