@@ -35,7 +35,8 @@ namespace Hazel {
 		void PushOverlay(Layer* layer);
 		void RenderImGui();
 
-		std::string OpenFile(const std::string& filter) const;
+		std::string OpenFile(const char* filter = "All\0*.*\0") const;
+		std::string SaveFile(const char* filter = "All\0*.*\0") const;
 
 		inline Window& GetWindow() { return *m_Window; }
 		

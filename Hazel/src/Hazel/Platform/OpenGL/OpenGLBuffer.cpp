@@ -27,25 +27,30 @@ namespace Hazel {
 	{
 		m_LocalData = Buffer::Copy(data, size);
 		 
-		Renderer::Submit([=](){
-			glCreateBuffers(1, &m_RendererID);
-			glNamedBufferData(m_RendererID, m_Size, m_LocalData.Data, OpenGLUsage(m_Usage));
+		Ref<OpenGLVertexBuffer> instance = this;
+		Renderer::Submit([instance]() mutable
+		{
+			glCreateBuffers(1, &instance->m_RendererID);
+			glNamedBufferData(instance->m_RendererID, instance->m_Size, instance->m_LocalData.Data, OpenGLUsage(instance->m_Usage));
 		});
 	}
 
 	OpenGLVertexBuffer::OpenGLVertexBuffer(uint32_t size, VertexBufferUsage usage)
 		: m_Size(size), m_Usage(usage)
 	{
-		Renderer::Submit([this]() {
-			glCreateBuffers(1, &m_RendererID);
-			glNamedBufferData(m_RendererID, m_Size, nullptr, OpenGLUsage(m_Usage));
+		Ref<OpenGLVertexBuffer> instance = this;
+		Renderer::Submit([instance]() mutable 
+		{
+			glCreateBuffers(1, &instance->m_RendererID);
+			glNamedBufferData(instance->m_RendererID, instance->m_Size, nullptr, OpenGLUsage(instance->m_Usage));
 		});
 	}
 
 	OpenGLVertexBuffer::~OpenGLVertexBuffer()
 	{
-		Renderer::Submit([this]() {
-			glDeleteBuffers(1, &m_RendererID);
+		GLuint rendererID = m_RendererID;
+		Renderer::Submit([rendererID]() {
+			glDeleteBuffers(1, &rendererID);
 		});
 	}
 
@@ -53,15 +58,17 @@ namespace Hazel {
 	{
 		m_LocalData = Buffer::Copy(data, size);
 		m_Size = size;
-		Renderer::Submit([this, offset]() {
-			glNamedBufferSubData(m_RendererID, offset, m_Size, m_LocalData.Data);
+		Ref<OpenGLVertexBuffer> instance = this;
+		Renderer::Submit([instance, offset]() {
+			glNamedBufferSubData(instance->m_RendererID, offset, instance->m_Size, instance->m_LocalData.Data);
 		});
 	}
 
 	void OpenGLVertexBuffer::Bind() const
 	{
-		Renderer::Submit([this]() {
-			glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
+		Ref<const OpenGLVertexBuffer> instance = this;
+		Renderer::Submit([instance]() {
+			glBindBuffer(GL_ARRAY_BUFFER, instance->m_RendererID);
 		});
 	}
 

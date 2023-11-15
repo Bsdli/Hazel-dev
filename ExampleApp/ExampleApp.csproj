@@ -56,9 +56,11 @@
   <ItemGroup Condition=" '$(Configuration)|$(Platform)' == 'Dist|x64' ">
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="src\BasicController.cs" />
     <Compile Include="src\MapGenerator.cs" />
     <Compile Include="src\Noise.cs" />
     <Compile Include="src\Script.cs" />
+    <Compile Include="src\Sink.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Hazel-ScriptCore\Hazel-ScriptCore.csproj">

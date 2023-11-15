@@ -184,7 +184,7 @@ namespace Hazel {
 		for (Submesh& submesh : mesh->m_Submeshes)
 		{
 			// Material
-			auto material = materials[submesh.MaterialIndex];
+			auto material = overrideMaterial ? overrideMaterial : materials[submesh.MaterialIndex];
 			auto shader = material->GetShader();
 			material->Bind();
 

@@ -10,7 +10,7 @@ namespace Example
 {
     public class MapGenerator : Entity
     {
-        // TODO: [EditorSlider("MapWidth Custom Name", 2, 0, 1024)]
+        // [EditorSlider("MapWidth Custom Name", 2, 0, 1024)]
         public int MapWidth = 128;
         public int MapHeight = 128;
         public int Octaves = 4;
@@ -19,6 +19,8 @@ namespace Example
         public float Lacunarity = 3.0f;
         public Vector2 Offset = new Vector2(13.4f, 6.26f);
         public float NoiseScale = 0.5f;
+
+        public float Speed = 0.0f;
 
         public void GenerateMap()
         {
@@ -66,7 +68,15 @@ namespace Example
 
         void OnUpdate(float ts)
         {
-
+            Matrix4 transform = GetTransform();
+            Vector3 translation = transform.Translation;
+            translation.Y += ts * Speed;
+            if (Input.IsKeyPressed(KeyCode.Space))
+            {
+                translation.Y -= 10.0f;
+            }
+            transform.Translation = translation;
+            SetTransform(transform);
         }
 
 

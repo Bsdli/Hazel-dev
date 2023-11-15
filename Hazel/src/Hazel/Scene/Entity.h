@@ -40,6 +40,7 @@ namespace Hazel {
 		const glm::mat4& Transform() const { return m_Scene->m_Registry.get<TransformComponent>(m_EntityHandle); }
 
 		operator uint32_t () const { return (uint32_t)m_EntityHandle; }
+		operator entt::entity () const { return m_EntityHandle; }
 		operator bool () const { return (uint32_t)m_EntityHandle && m_Scene; }
 
 		bool operator==(const Entity& other) const
@@ -51,6 +52,9 @@ namespace Hazel {
 		{
 			return !(*this == other);
 		}
+
+		UUID GetUUID() { return GetComponent<IDComponent>().ID; }
+		UUID GetSceneUUID() { return m_Scene->GetUUID(); }
 	private:
 		Entity(const std::string& name);
 	private:
@@ -58,6 +62,7 @@ namespace Hazel {
 		Scene* m_Scene = nullptr;
 
 		friend class Scene;
+		friend class SceneSerializer;
 		friend class ScriptEngine;
 	};
 

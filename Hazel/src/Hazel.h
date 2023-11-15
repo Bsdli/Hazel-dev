@@ -37,4 +37,6 @@
 // Scenes
 #include "Hazel/Scene/Entity.h"
 #include "Hazel/Scene/Scene.h"
+#include "Hazel/Scene/SceneCamera.h"
+#include "Hazel/Scene/SceneSerializer.h"
 #include "Hazel/Scene/Components.h"

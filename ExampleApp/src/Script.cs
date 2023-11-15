@@ -6,7 +6,12 @@ namespace Example
 {
     public class Script : Entity
     {
+        public float VerticalSpeed = 5.0f;
         public float Speed = 5.0f;
+        public float Rotation = 0.0f;
+
+        public Vector3 Velocity;
+        public float SinkRate;
 
         public void OnCreate()
         {
@@ -15,19 +20,18 @@ namespace Example
 
         public void OnUpdate(float ts)
         {
+            Rotation += ts;
+
             Matrix4 transform = GetTransform();
             Vector3 translation = transform.Translation;
 
             float speed = Speed * ts;
-
-            if (Input.IsKeyPressed(KeyCode.Up))
-                translation.Y += speed;
-            else if (Input.IsKeyPressed(KeyCode.Down))
-                translation.Y -= speed;
-            if (Input.IsKeyPressed(KeyCode.Right))
-                translation.X += speed;
-            else if (Input.IsKeyPressed(KeyCode.Left))
-                translation.X -= speed;
+            
+            translation.X += Velocity.X * ts;
+            translation.Y += Velocity.Y * ts;
+            translation.Z += Velocity.Z * ts;
+            
+            translation.Y -= SinkRate * ts;
 
             transform.Translation = translation;
             SetTransform(transform);
