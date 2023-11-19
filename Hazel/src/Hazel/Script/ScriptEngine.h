@@ -120,6 +120,11 @@ namespace Hazel {
 		static void OnCreateEntity(UUID sceneID, UUID entityID);
 		static void OnUpdateEntity(UUID sceneID, UUID entityID, Timestep ts);
 
+		static void OnCollision2DBegin(Entity entity);
+		static void OnCollision2DBegin(UUID sceneID, UUID entityID);
+		static void OnCollision2DEnd(Entity entity);
+		static void OnCollision2DEnd(UUID sceneID, UUID entityID);
+
 		static void OnScriptComponentDestroyed(UUID sceneID, UUID entityID);
 
 		static bool ModuleExists(const std::string& moduleName);

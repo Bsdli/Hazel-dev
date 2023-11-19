@@ -21,12 +21,14 @@ namespace Hazel {
 		template<typename T, typename... Args>
 		T& AddComponent(Args&&... args)
 		{
+			HZ_CORE_ASSERT(!HasComponent<T>(), "Entity already has component!");
 			return m_Scene->m_Registry.emplace<T>(m_EntityHandle, std::forward<Args>(args)...);
 		}
 
 		template<typename T>
 		T& GetComponent()
 		{
+			HZ_CORE_ASSERT(HasComponent<T>(), "Entity doesn't have component!");
 			return m_Scene->m_Registry.get<T>(m_EntityHandle);
 		}
 
@@ -34,6 +36,13 @@ namespace Hazel {
 		bool HasComponent()
 		{
 			return m_Scene->m_Registry.has<T>(m_EntityHandle);
+		}
+
+		template<typename T>
+		void RemoveComponent()
+		{
+			HZ_CORE_ASSERT(HasComponent<T>(), "Entity doesn't have component!");
+			m_Scene->m_Registry.remove<T>(m_EntityHandle);
 		}
 
 		glm::mat4& Transform() { return m_Scene->m_Registry.get<TransformComponent>(m_EntityHandle); }
@@ -58,7 +67,7 @@ namespace Hazel {
 	private:
 		Entity(const std::string& name);
 	private:
-		entt::entity m_EntityHandle;
+		entt::entity m_EntityHandle{ entt::null };
 		Scene* m_Scene = nullptr;
 
 		friend class Scene;

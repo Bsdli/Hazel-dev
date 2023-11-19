@@ -9,6 +9,11 @@ workspace "Hazel"
 		"Dist"
 	}
 
+	flags
+	{
+		"MultiProcessorCompile"
+	}
+
 	startproject "Hazelnut"
 	
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
@@ -19,6 +24,7 @@ IncludeDir["GLFW"] = "Hazel/vendor/GLFW/include"
 IncludeDir["Glad"] = "Hazel/vendor/Glad/include"
 IncludeDir["ImGui"] = "Hazel/vendor/ImGui"
 IncludeDir["glm"] = "Hazel/vendor/glm"
+IncludeDir["Box2D"] = "Hazel/vendor/Box2D/include"
 IncludeDir["entt"] = "Hazel/vendor/entt/include"
 IncludeDir["FastNoise"] = "Hazel/vendor/FastNoise"
 IncludeDir["mono"] = "Hazel/vendor/mono/include"
@@ -30,6 +36,7 @@ group "Dependencies"
 include "Hazel/vendor/GLFW"
 include "Hazel/vendor/Glad"
 include "Hazel/vendor/ImGui"
+include "Hazel/vendor/Box2D"
 group ""
 
 group "Core"
@@ -68,6 +75,7 @@ project "Hazel"
 		"%{IncludeDir.Glad}",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.ImGui}",
+		"%{IncludeDir.Box2D}",
 		"%{IncludeDir.entt}",
 		"%{IncludeDir.mono}",
 		"%{IncludeDir.FastNoise}",
@@ -81,6 +89,7 @@ project "Hazel"
 		"GLFW",
 		"Glad",
 		"ImGui",
+		"Box2D",
 		"opengl32.lib",
 		"%{LibraryDir.mono}"
 	}

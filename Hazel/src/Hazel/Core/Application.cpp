@@ -182,4 +182,26 @@ namespace Hazel {
 		return (float)glfwGetTime();
 	}
 
+	const char* Application::GetConfigurationName()
+	{
+#if defined(HZ_DEBUG)
+		return "Debug";
+#elif defined(HZ_RELEASE)
+		return "Release";
+#elif defined(HZ_DIST)
+		return "Dist";
+#else
+	#error Undefined configuration?
+#endif
+	}
+
+	const char* Application::GetPlatformName()
+	{
+#if defined(HZ_PLATFORM_WINDOWS)
+		return "Windows x64";
+#else
+	#error Undefined platform?
+#endif
+	}
+
 }

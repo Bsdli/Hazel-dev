@@ -75,10 +75,10 @@ namespace Hazel
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern IntPtr GetMesh_Native(ulong entityID);
+        internal static extern IntPtr GetMesh_Native(ulong entityID);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern void SetMesh_Native(ulong entityID, IntPtr unmanagedInstance);
+        internal static extern void SetMesh_Native(ulong entityID, IntPtr unmanagedInstance);
 
     }
 
@@ -96,4 +96,38 @@ namespace Hazel
     {
         // TODO
     }
+
+    // TODO
+    public class RigidBody2DComponent : Component
+    {
+        public void ApplyLinearImpulse(Vector2 impulse, Vector2 offset, bool wake)
+        {
+            ApplyLinearImpulse_Native(Entity.ID, ref impulse, ref offset, wake);
+        }
+
+        public Vector2 GetLinearVelocity()
+        {
+            GetLinearVelocity_Native(Entity.ID, out Vector2 velocity);
+            return velocity;
+        }
+
+        public void SetLinearVelocity(Vector2 velocity)
+        {
+            SetLinearVelocity_Native(Entity.ID, ref velocity);
+        }
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern void ApplyLinearImpulse_Native(ulong entityID, ref Vector2 impulse, ref Vector2 offset, bool wake);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern void GetLinearVelocity_Native(ulong entityID, out Vector2 velocity);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern void SetLinearVelocity_Native(ulong entityID, ref Vector2 velocity);
+    }
+
+    public class BoxCollider2DComponent : Component
+    {
+    }
+
+
 }

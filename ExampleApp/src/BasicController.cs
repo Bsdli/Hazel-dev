@@ -12,26 +12,20 @@ namespace Example
     {
         public float Speed;
 
+        private Entity m_PlayerEntity;
+
         public void OnCreate()
         {
+            m_PlayerEntity = FindEntityByTag("Player");
         }
 
         public void OnUpdate(float ts)
         {
             Matrix4 transform = GetTransform();
+
             Vector3 translation = transform.Translation;
-
-            float speed = Speed * ts;
-
-            if (Input.IsKeyPressed(KeyCode.Up))
-                translation.Y += speed;
-            else if (Input.IsKeyPressed(KeyCode.Down))
-                translation.Y -= speed;
-            if (Input.IsKeyPressed(KeyCode.Right))
-                translation.X += speed;
-            else if (Input.IsKeyPressed(KeyCode.Left))
-                translation.X -= speed;
-
+            translation.XY = m_PlayerEntity.GetTransform().Translation.XY;
+            translation.Y = Math.Max(translation.Y, 4.5f);
             transform.Translation = translation;
             SetTransform(transform);
         }

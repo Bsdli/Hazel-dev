@@ -1,7 +1,9 @@
 # Binaries
 **/bin/
-!Hazel/vendor/assimp
+!vendor/bin/premake/
+!Hazel/vendor/mono/bin
 bin-int/
+obj/
 
 # Visual Studio files and folder
 .vs/
@@ -9,3 +11,4 @@ bin-int/
 **.vcxproj
 **.vcxproj.filters
 **.vcxproj.user
+**.csproj

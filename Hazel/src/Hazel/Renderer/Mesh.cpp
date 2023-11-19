@@ -19,6 +19,7 @@
 #include "imgui/imgui.h"
 
 #include "Hazel/Renderer/Renderer.h"
+#include "Hazel/Renderer/VertexBuffer.h"
 
 #include <filesystem>
 
@@ -229,7 +230,7 @@ namespace Hazel {
 				auto aiMaterial = scene->mMaterials[i];
 				auto aiMaterialName = aiMaterial->GetName();
 
-				auto mi = Ref<MaterialInstance>::Create(m_BaseMaterial);
+				auto mi = Ref<MaterialInstance>::Create(m_BaseMaterial, aiMaterialName.data);
 				m_Materials[i] = mi;
 
 				HZ_MESH_LOG("  {0} (Index = {1})", aiMaterialName.data, i);
@@ -241,13 +242,12 @@ namespace Hazel {
 				aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, aiColor);
 
 				float shininess, metalness;
-				aiMaterial->Get(AI_MATKEY_SHININESS, shininess);
-				aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness);
+				if (aiMaterial->Get(AI_MATKEY_SHININESS, shininess) != aiReturn_SUCCESS)
+					shininess = 80.0f; // Default value
 
-				metalness = 0.0f;
+				if (aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness) != aiReturn_SUCCESS)
+					metalness = 0.0f;
 
-				// float roughness = 1.0f - shininess * 0.01f;
-				// roughness *= roughness;
 				float roughness = 1.0f - glm::sqrt(shininess / 100.0f);
 				HZ_MESH_LOG("    COLOR = {0}, {1}, {2}", aiColor.r, aiColor.g, aiColor.b);
 				HZ_MESH_LOG("    ROUGHNESS = {0}", roughness);
@@ -464,11 +464,11 @@ namespace Hazel {
 			HZ_MESH_LOG("------------------------");
 		}
 
-		m_VertexArray = VertexArray::Create();
+		VertexBufferLayout vertexLayout;
 		if (m_IsAnimated)
 		{
-			auto vb = VertexBuffer::Create(m_AnimatedVertices.data(), m_AnimatedVertices.size() * sizeof(AnimatedVertex));
-			vb->SetLayout({
+			m_VertexBuffer = VertexBuffer::Create(m_AnimatedVertices.data(), m_AnimatedVertices.size() * sizeof(AnimatedVertex));
+			vertexLayout = {
 				{ ShaderDataType::Float3, "a_Position" },
 				{ ShaderDataType::Float3, "a_Normal" },
 				{ ShaderDataType::Float3, "a_Tangent" },
@@ -476,24 +476,25 @@ namespace Hazel {
 				{ ShaderDataType::Float2, "a_TexCoord" },
 				{ ShaderDataType::Int4, "a_BoneIDs" },
 				{ ShaderDataType::Float4, "a_BoneWeights" },
-			});
-			m_VertexArray->AddVertexBuffer(vb);
+			};
 		}
 		else
 		{
-			auto vb = VertexBuffer::Create(m_StaticVertices.data(), m_StaticVertices.size() * sizeof(Vertex));
-			vb->SetLayout({
+			m_VertexBuffer = VertexBuffer::Create(m_StaticVertices.data(), m_StaticVertices.size() * sizeof(Vertex));
+			vertexLayout = {
 				{ ShaderDataType::Float3, "a_Position" },
 				{ ShaderDataType::Float3, "a_Normal" },
 				{ ShaderDataType::Float3, "a_Tangent" },
 				{ ShaderDataType::Float3, "a_Binormal" },
 				{ ShaderDataType::Float2, "a_TexCoord" },
-			});
-			m_VertexArray->AddVertexBuffer(vb);
+			};
 		}
 
-		auto ib = IndexBuffer::Create(m_Indices.data(), m_Indices.size() * sizeof(Index));
-		m_VertexArray->SetIndexBuffer(ib);
+		m_IndexBuffer = IndexBuffer::Create(m_Indices.data(), m_Indices.size() * sizeof(Index));
+
+		PipelineSpecification pipelineSpecification;
+		pipelineSpecification.Layout = vertexLayout;
+		m_Pipeline = Pipeline::Create(pipelineSpecification);
 	}
 
 	Mesh::~Mesh()
@@ -597,9 +598,8 @@ namespace Hazel {
 		HZ_CORE_ASSERT(NextPositionIndex < nodeAnim->mNumPositionKeys);
 		float DeltaTime = (float)(nodeAnim->mPositionKeys[NextPositionIndex].mTime - nodeAnim->mPositionKeys[PositionIndex].mTime);
 		float Factor = (animationTime - (float)nodeAnim->mPositionKeys[PositionIndex].mTime) / DeltaTime;
-		if (Factor < 0.0f)
-			Factor = 0.0f;
 		HZ_CORE_ASSERT(Factor <= 1.0f, "Factor must be below 1.0f");
+		Factor = glm::clamp(Factor, 0.0f, 1.0f);
 		const aiVector3D& Start = nodeAnim->mPositionKeys[PositionIndex].mValue;
 		const aiVector3D& End = nodeAnim->mPositionKeys[NextPositionIndex].mValue;
 		aiVector3D Delta = End - Start;
@@ -622,9 +622,8 @@ namespace Hazel {
 		HZ_CORE_ASSERT(NextRotationIndex < nodeAnim->mNumRotationKeys);
 		float DeltaTime = (float)(nodeAnim->mRotationKeys[NextRotationIndex].mTime - nodeAnim->mRotationKeys[RotationIndex].mTime);
 		float Factor = (animationTime - (float)nodeAnim->mRotationKeys[RotationIndex].mTime) / DeltaTime;
-		if (Factor < 0.0f)
-			Factor = 0.0f;
 		HZ_CORE_ASSERT(Factor <= 1.0f, "Factor must be below 1.0f");
+		Factor = glm::clamp(Factor, 0.0f, 1.0f);
 		const aiQuaternion& StartRotationQ = nodeAnim->mRotationKeys[RotationIndex].mValue;
 		const aiQuaternion& EndRotationQ = nodeAnim->mRotationKeys[NextRotationIndex].mValue;
 		auto q = aiQuaternion();
@@ -648,9 +647,8 @@ namespace Hazel {
 		HZ_CORE_ASSERT(nextIndex < nodeAnim->mNumScalingKeys);
 		float deltaTime = (float)(nodeAnim->mScalingKeys[nextIndex].mTime - nodeAnim->mScalingKeys[index].mTime);
 		float factor = (animationTime - (float)nodeAnim->mScalingKeys[index].mTime) / deltaTime;
-		if (factor < 0.0f)
-			factor = 0.0f;
 		HZ_CORE_ASSERT(factor <= 1.0f, "Factor must be below 1.0f");
+		factor = glm::clamp(factor, 0.0f, 1.0f);
 		const auto& start = nodeAnim->mScalingKeys[index].mValue;
 		const auto& end = nodeAnim->mScalingKeys[nextIndex].mValue;
 		auto delta = end - start;

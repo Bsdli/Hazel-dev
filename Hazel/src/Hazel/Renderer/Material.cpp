@@ -131,8 +131,8 @@ namespace Hazel {
 		return Ref<MaterialInstance>::Create(material);
 	}
 
-	MaterialInstance::MaterialInstance(const Ref<Material>& material)
-		: m_Material(material)
+	MaterialInstance::MaterialInstance(const Ref<Material>& material, const std::string& name)
+		: m_Material(material), m_Name(name)
 	{
 		m_Material->m_MaterialInstances.insert(this);
 		AllocateStorage();

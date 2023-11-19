@@ -23,7 +23,7 @@ namespace Hazel {
 	public:
 		enum class PropertyFlag
 		{
-			None = 0, ColorProperty = 1
+			None = 0, ColorProperty = 1, DragProperty = 2, SliderProperty = 4
 		};
 	public:
 		EditorLayer();
@@ -40,16 +40,20 @@ namespace Hazel {
 
 		// ImGui UI helpers
 		bool Property(const std::string& name, bool& value);
-		void Property(const std::string& name, float& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
-		void Property(const std::string& name, glm::vec2& value, PropertyFlag flags);
-		void Property(const std::string& name, glm::vec2& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
-		void Property(const std::string& name, glm::vec3& value, PropertyFlag flags);
-		void Property(const std::string& name, glm::vec3& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
-		void Property(const std::string& name, glm::vec4& value, PropertyFlag flags);
-		void Property(const std::string& name, glm::vec4& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
+		bool Property(const std::string& name, float& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
+		bool Property(const std::string& name, glm::vec2& value, PropertyFlag flags);
+		bool Property(const std::string& name, glm::vec2& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
+		bool Property(const std::string& name, glm::vec3& value, PropertyFlag flags);
+		bool Property(const std::string& name, glm::vec3& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
+		bool Property(const std::string& name, glm::vec4& value, PropertyFlag flags);
+		bool Property(const std::string& name, glm::vec4& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
 
 		void ShowBoundingBoxes(bool show, bool onTop = false);
 		void SelectEntity(Entity entity);
+
+		void OpenScene();
+		void SaveScene();
+		void SaveSceneAs();
 	private:
 		std::pair<float, float> GetMouseViewportSpace();
 		std::pair<glm::vec3, glm::vec3> CastRay(float mx, float my);
@@ -67,11 +71,16 @@ namespace Hazel {
 
 		void OnScenePlay();
 		void OnSceneStop();
+
+		void UpdateWindowTitle(const std::string& sceneName);
+
+		float GetSnapValue();
 	private:
 		Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
 
-		Ref<Scene> m_ActiveScene;
 		Ref<Scene> m_RuntimeScene, m_EditorScene;
+		std::string m_SceneFilePath;
+		bool m_ReloadScriptOnPlay = true;
 
 		EditorCamera m_EditorCamera;
 
@@ -89,14 +98,14 @@ namespace Hazel {
 			bool SRGB = true;
 			bool UseTexture = false;
 		};
-		AlbedoInput m_AlbedoInput;
+		//AlbedoInput m_AlbedoInput;
 
 		struct NormalInput
 		{
 			Ref<Texture2D> TextureMap;
 			bool UseTexture = false;
 		};
-		NormalInput m_NormalInput;
+		//NormalInput m_NormalInput;
 
 		struct MetalnessInput
 		{
@@ -104,7 +113,7 @@ namespace Hazel {
 			Ref<Texture2D> TextureMap;
 			bool UseTexture = false;
 		};
-		MetalnessInput m_MetalnessInput;
+		//MetalnessInput m_MetalnessInput;
 
 		struct RoughnessInput
 		{
@@ -112,7 +121,7 @@ namespace Hazel {
 			Ref<Texture2D> TextureMap;
 			bool UseTexture = false;
 		};
-		RoughnessInput m_RoughnessInput;
+		//RoughnessInput m_RoughnessInput;
 
 		// PBR params
 		bool m_RadiancePrefilter = false;
@@ -132,6 +141,7 @@ namespace Hazel {
 		glm::vec2 m_ViewportBounds[2];
 		int m_GizmoType = -1; // -1 = no gizmo
 		float m_SnapValue = 0.5f;
+		float m_RotationSnapValue = 45.0f;
 		bool m_AllowViewportCameraEvents = false;
 		bool m_DrawOnTopBoundingBoxes = false;
 

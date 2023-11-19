@@ -18,7 +18,10 @@ namespace Hazel {
 		Ref<RenderPass> m_ActiveRenderPass;
 		RenderCommandQueue m_CommandQueue;
 		Ref<ShaderLibrary> m_ShaderLibrary;
-		Ref<VertexArray> m_FullscreenQuadVertexArray;
+
+		Ref<VertexBuffer> m_FullscreenQuadVertexBuffer;
+		Ref<IndexBuffer> m_FullscreenQuadIndexBuffer;
+		Ref<Pipeline> m_FullscreenQuadPipeline;
 	};
 
 	static RendererData s_Data;
@@ -57,18 +60,16 @@ namespace Hazel {
 		data[3].Position = glm::vec3(x, y + height, 0.1f);
 		data[3].TexCoord = glm::vec2(0, 1);
 
-		s_Data.m_FullscreenQuadVertexArray = VertexArray::Create();
-		auto quadVB = VertexBuffer::Create(data, 4 * sizeof(QuadVertex));
-		quadVB->SetLayout({
+		PipelineSpecification pipelineSpecification;
+		pipelineSpecification.Layout = {
 			{ ShaderDataType::Float3, "a_Position" },
 			{ ShaderDataType::Float2, "a_TexCoord" }
-			});
+		};
+		s_Data.m_FullscreenQuadPipeline = Pipeline::Create(pipelineSpecification);
 
+		s_Data.m_FullscreenQuadVertexBuffer = VertexBuffer::Create(data, 4 * sizeof(QuadVertex));
 		uint32_t indices[6] = { 0, 1, 2, 2, 3, 0, };
-		auto quadIB = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
-
-		s_Data.m_FullscreenQuadVertexArray->AddVertexBuffer(quadVB);
-		s_Data.m_FullscreenQuadVertexArray->SetIndexBuffer(quadIB);
+		s_Data.m_FullscreenQuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
 
 		Renderer2D::Init();
 	}
@@ -156,7 +157,9 @@ namespace Hazel {
 			shader->SetMat4("u_Transform", transform);
 		}
 
-		s_Data.m_FullscreenQuadVertexArray->Bind();
+		s_Data.m_FullscreenQuadVertexBuffer->Bind();
+		s_Data.m_FullscreenQuadPipeline->Bind();
+		s_Data.m_FullscreenQuadIndexBuffer->Bind();
 		Renderer::DrawIndexed(6, PrimitiveType::Triangles, depthTest);
 	}
 
@@ -169,7 +172,9 @@ namespace Hazel {
 			depthTest = material->GetFlag(MaterialFlag::DepthTest);
 		}
 
-		s_Data.m_FullscreenQuadVertexArray->Bind();
+		s_Data.m_FullscreenQuadVertexBuffer->Bind();
+		s_Data.m_FullscreenQuadPipeline->Bind();
+		s_Data.m_FullscreenQuadIndexBuffer->Bind();
 		Renderer::DrawIndexed(6, PrimitiveType::Triangles, depthTest);
 	}
 
@@ -178,7 +183,9 @@ namespace Hazel {
 		// auto material = overrideMaterial ? overrideMaterial : mesh->GetMaterialInstance();
 		// auto shader = material->GetShader();
 		// TODO: Sort this out
-		mesh->m_VertexArray->Bind();
+		mesh->m_VertexBuffer->Bind();
+		mesh->m_Pipeline->Bind();
+		mesh->m_IndexBuffer->Bind();
 
 		auto& materials = mesh->GetMaterials();
 		for (Submesh& submesh : mesh->m_Submeshes)

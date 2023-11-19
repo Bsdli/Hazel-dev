@@ -76,12 +76,17 @@ namespace Hazel {
 			return m_Registry.view<T>();
 		}
 
+		Entity FindEntityByTag(const std::string& tag);
+
 		const EntityMap& GetEntityMap() const { return m_EntityIDMap; }
 		void CopyTo(Ref<Scene>& target);
 
 		UUID GetUUID() const { return m_SceneID; }
 
 		static Ref<Scene> GetScene(UUID uuid);
+
+		float GetPhysics2DGravity() const;
+		void SetPhysics2DGravity(float gravity);
 
 		// Editor-specific
 		void SetSelectedEntity(entt::entity entity) { m_SelectedEntity = entity; }
@@ -104,6 +109,8 @@ namespace Hazel {
 
 		entt::entity m_SelectedEntity;
 
+		Entity* m_PhysicsBodyEntityBuffer = nullptr;
+
 		float m_SkyboxLod = 1.0f;
 		bool m_IsPlaying = false;
 
@@ -113,6 +120,7 @@ namespace Hazel {
 		friend class SceneHierarchyPanel;
 
 		friend void OnScriptComponentConstruct(entt::registry& registry, entt::entity entity);
+		friend void OnScriptComponentDestroy(entt::registry& registry, entt::entity entity);
 	};
 
 }

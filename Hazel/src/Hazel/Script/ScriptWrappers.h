@@ -23,9 +23,14 @@ namespace Hazel { namespace Script {
 	void Hazel_Entity_SetTransform(uint64_t entityID, glm::mat4* inTransform);
 	void Hazel_Entity_CreateComponent(uint64_t entityID, void* type);
 	bool Hazel_Entity_HasComponent(uint64_t entityID, void* type);
+	uint64_t Hazel_Entity_FindEntityByTag(MonoString* tag);
 
 	void* Hazel_MeshComponent_GetMesh(uint64_t entityID);
 	void Hazel_MeshComponent_SetMesh(uint64_t entityID, Ref<Mesh>* inMesh);
+
+	void Hazel_RigidBody2DComponent_ApplyLinearImpulse(uint64_t entityID, glm::vec2* impulse, glm::vec2* offset, bool wake);
+	void Hazel_RigidBody2DComponent_GetLinearVelocity(uint64_t entityID, glm::vec2* outVelocity);
+	void Hazel_RigidBody2DComponent_SetLinearVelocity(uint64_t entityID, glm::vec2* velocity);
 
 	// Renderer
 	// Texture2D
@@ -41,6 +46,7 @@ namespace Hazel { namespace Script {
 	void Hazel_MaterialInstance_Destructor(Ref<MaterialInstance>* _this);
 	void Hazel_MaterialInstance_SetFloat(Ref<MaterialInstance>* _this, MonoString* uniform, float value);
 	void Hazel_MaterialInstance_SetVector3(Ref<MaterialInstance>* _this, MonoString* uniform, glm::vec3* value);
+	void Hazel_MaterialInstance_SetVector4(Ref<MaterialInstance>* _this, MonoString* uniform, glm::vec4* value);
 	void Hazel_MaterialInstance_SetTexture(Ref<MaterialInstance>* _this, MonoString* uniform, Ref<Texture2D>* texture);
 
 	// Mesh
