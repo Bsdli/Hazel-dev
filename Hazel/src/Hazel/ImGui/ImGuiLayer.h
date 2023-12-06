@@ -12,6 +12,8 @@ namespace Hazel {
 		ImGuiLayer(const std::string& name);
 		virtual ~ImGuiLayer();
 
+		virtual void OnEvent(Event& e) override;
+
 		void Begin();
 		void End();
 

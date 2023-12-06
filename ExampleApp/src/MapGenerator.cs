@@ -68,7 +68,7 @@ namespace Example
 
         void OnUpdate(float ts)
         {
-            Matrix4 transform = GetTransform();
+           /* Matrix4 transform = GetTransform();
             Vector3 translation = transform.Translation;
             translation.Y += ts * Speed;
             if (Input.IsKeyPressed(KeyCode.Space))
@@ -76,7 +76,7 @@ namespace Example
                 translation.Y -= 10.0f;
             }
             transform.Translation = translation;
-            SetTransform(transform);
+            SetTransform(transform);*/
         }
 
 

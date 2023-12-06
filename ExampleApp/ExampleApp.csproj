@@ -57,9 +57,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\BasicController.cs" />
+    <Compile Include="src\FPSPlayer.cs" />
     <Compile Include="src\MapGenerator.cs" />
     <Compile Include="src\Noise.cs" />
     <Compile Include="src\PlayerCube.cs" />
+    <Compile Include="src\PlayerSphere.cs" />
     <Compile Include="src\RandomColor.cs" />
     <Compile Include="src\Script.cs" />
     <Compile Include="src\Sink.cs" />

@@ -25,6 +25,8 @@ namespace Hazel {
 		virtual void SetVSync(bool enabled) override;
 		virtual bool IsVSync() const override;
 
+		virtual void Maximize() override;
+
 		virtual const std::string& GetTitle() const override { return m_Data.Title; }
 		virtual void SetTitle(const std::string& title) override;
 

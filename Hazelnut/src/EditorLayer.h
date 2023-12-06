@@ -51,7 +51,9 @@ namespace Hazel {
 		void ShowBoundingBoxes(bool show, bool onTop = false);
 		void SelectEntity(Entity entity);
 
+		void NewScene();
 		void OpenScene();
+		void OpenScene(const std::string& filepath);
 		void SaveScene();
 		void SaveSceneAs();
 	private:
@@ -150,6 +152,8 @@ namespace Hazel {
 
 		bool m_ViewportPanelMouseOver = false;
 		bool m_ViewportPanelFocused = false;
+
+		bool m_ShowPhysicsSettings = false;
 
 		enum class SceneState
 		{

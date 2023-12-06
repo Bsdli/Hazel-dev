@@ -11,7 +11,7 @@ Entities:
       Tag: Sphere
     TransformComponent:
       Position: [0, 21.9805069, -1.64006281]
-      Rotation: [1, 0, 0, 0]
+      Rotation: [0, 0, 0]
       Scale: [0.100000024, 0.100000024, 0.100000024]
     ScriptComponent:
       ModuleName: Example.Sink
@@ -26,7 +26,7 @@ Entities:
       Tag: Camera
     TransformComponent:
       Position: [0, 14.75, 79.75]
-      Rotation: [0.995602965, -0.0936739072, 0, 0]
+      Rotation: [0, 0, 0]
       Scale: [1, 0.999999821, 0.999999821]
     ScriptComponent:
       ModuleName: Example.BasicController
@@ -42,7 +42,7 @@ Entities:
       Tag: Test Entity
     TransformComponent:
       Position: [0.248109579, -1.90734863e-06, -0.268640995]
-      Rotation: [1, 0, 0, 0]
+      Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     ScriptComponent:
       ModuleName: Example.Script

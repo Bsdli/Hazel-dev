@@ -70,9 +70,9 @@ namespace Example
 
             if (Input.IsKeyPressed(KeyCode.R))
             {
-                Matrix4 transform = GetTransform();
+                /*Matrix4 transform = GetTransform();
                 transform.Translation = new Vector3(0.0f);
-                SetTransform(transform);
+                SetTransform(transform);*/
             }
 
         }

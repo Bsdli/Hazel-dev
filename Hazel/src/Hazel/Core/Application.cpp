@@ -8,6 +8,9 @@
 #include <imgui/imgui.h>
 
 #include "Hazel/Script/ScriptEngine.h"
+#include "Hazel/Physics/Physics.h"
+
+#include "Input.h"
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
@@ -25,12 +28,14 @@ namespace Hazel {
 
 		m_Window = std::unique_ptr<Window>(Window::Create(WindowProps(props.Name, props.WindowWidth, props.WindowHeight)));
 		m_Window->SetEventCallback(BIND_EVENT_FN(OnEvent));
+		m_Window->Maximize();
 		m_Window->SetVSync(true);
 
 		m_ImGuiLayer = new ImGuiLayer("ImGui");
 		PushOverlay(m_ImGuiLayer);
 
 		ScriptEngine::Init("assets/scripts/ExampleApp.dll");
+		Physics::Init();
 
 		Renderer::Init();
 		Renderer::WaitAndRender();
@@ -38,6 +43,10 @@ namespace Hazel {
 
 	Application::~Application()
 	{
+		for (Layer* layer : m_LayerStack)
+			layer->OnDetach();
+
+		Physics::Shutdown();
 		ScriptEngine::Shutdown();
 	}
 
@@ -122,7 +131,10 @@ namespace Hazel {
 		Renderer::Submit([=]() { glViewport(0, 0, width, height); });
 		auto& fbs = FramebufferPool::GetGlobal()->GetAll();
 		for (auto& fb : fbs)
-			fb->Resize(width, height);
+		{
+			if (!fb->GetSpecification().NoResize)
+				fb->Resize(width, height);
+		}
 
 		return false;
 	}

@@ -6,11 +6,40 @@
 
 namespace Hazel {
 
-	enum class FramebufferFormat
+	enum class FramebufferTextureFormat
 	{
 		None    = 0,
+
+		// Color
 		RGBA8   = 1,
-		RGBA16F = 2
+		RGBA16F = 2,
+		RGBA32F = 3,
+		RG32F   = 4,
+
+		// Depth/stencil
+		DEPTH32F = 5,
+		DEPTH24STENCIL8 = 6,
+
+		// Defaults
+		Depth = DEPTH24STENCIL8
+	};
+
+	struct FramebufferTextureSpecification
+	{
+		FramebufferTextureSpecification() = default;
+		FramebufferTextureSpecification(FramebufferTextureFormat format) : TextureFormat(format) {}
+
+		FramebufferTextureFormat TextureFormat;
+		// TODO: filtering/wrap
+	};
+
+	struct FramebufferAttachmentSpecification
+	{
+		FramebufferAttachmentSpecification() = default;
+		FramebufferAttachmentSpecification(const std::initializer_list<FramebufferTextureSpecification>& attachments)
+			: Attachments(attachments) {}
+
+		std::vector<FramebufferTextureSpecification> Attachments;
 	};
 
 	struct FramebufferSpecification
@@ -18,8 +47,11 @@ namespace Hazel {
 		uint32_t Width = 1280;
 		uint32_t Height = 720;
 		glm::vec4 ClearColor;
-		FramebufferFormat Format;
+		FramebufferAttachmentSpecification Attachments;
 		uint32_t Samples = 1; // multisampling
+
+		// TODO: Temp, needs scale
+		bool NoResize = false;
 		
 		// SwapChainTarget = screen buffer (i.e. no framebuffer)
 		bool SwapChainTarget = false;
@@ -34,10 +66,13 @@ namespace Hazel {
 
 		virtual void Resize(uint32_t width, uint32_t height, bool forceRecreate = false) = 0;
 
-		virtual void BindTexture(uint32_t slot = 0) const = 0;
+		virtual void BindTexture(uint32_t attachmentIndex = 0, uint32_t slot = 0) const = 0;
+
+		virtual uint32_t GetWidth() const = 0;
+		virtual uint32_t GetHeight() const = 0;
 
 		virtual RendererID GetRendererID() const = 0;
-		virtual RendererID GetColorAttachmentRendererID() const = 0;
+		virtual RendererID GetColorAttachmentRendererID(int index = 0) const = 0;
 		virtual RendererID GetDepthAttachmentRendererID() const = 0;
 
 		virtual const FramebufferSpecification& GetSpecification() const = 0;

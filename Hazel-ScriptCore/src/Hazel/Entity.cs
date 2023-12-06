@@ -4,14 +4,18 @@ using System.Runtime.CompilerServices;
 
 namespace Hazel
 {
-    public class Entity
+	public class Entity
     {
         public ulong ID { get; private set; }
+       
+		private Action<float> m_CollisionBeginCallbacks;
+		private Action<float> m_CollisionEndCallbacks;
+		private Action<float> m_Collision2DBeginCallbacks;
+        private Action<float> m_Collision2DEndCallbacks;
+		private Action<float> m_TriggerBeginCallbacks;
+		private Action<float> m_TriggerEndCallbacks;
 
-        private List<Action<float>> m_Collision2DBeginCallbacks = new List<Action<float>>();
-        private List<Action<float>> m_Collision2DEndCallbacks = new List<Action<float>>();
-
-        protected Entity() { ID = 0; }
+		protected Entity() { ID = 0; }
 
         internal Entity(ulong id)
         {
@@ -52,50 +56,81 @@ namespace Hazel
             return new Entity(entityID);
         }
 
-        public Matrix4 GetTransform()
+        public Entity FindEntityByID(ulong entityID)
         {
-            Matrix4 mat4Instance;
-            GetTransform_Native(ID, out mat4Instance);
-            return mat4Instance;
-        }
-
-        public void SetTransform(Matrix4 transform)
-        {
-            SetTransform_Native(ID, ref transform);
+            // TODO: Verify the entity id
+            return new Entity(entityID);
         }
 
         public void AddCollision2DBeginCallback(Action<float> callback)
         {
-            m_Collision2DBeginCallbacks.Add(callback);
+            m_Collision2DBeginCallbacks += callback;
         }
 
         public void AddCollision2DEndCallback(Action<float> callback)
         {
-            m_Collision2DEndCallbacks.Add(callback);
+            m_Collision2DEndCallbacks += callback;
         }
 
-        private void OnCollision2DBegin(float data)
+		public void AddCollisionBeginCallback(Action<float> callback)
+		{
+            m_CollisionBeginCallbacks += callback;
+		}
+
+		public void AddCollisionEndCallback(Action<float> callback)
+		{
+            m_CollisionEndCallbacks += callback;
+		}
+
+        public void AddTriggerBeginCallback(Action<float> callback)
+		{
+            m_TriggerBeginCallbacks += callback;
+		}
+
+		public void AddTriggerEndCallback(Action<float> callback)
+		{
+			m_TriggerEndCallbacks += callback;
+		}
+
+		private void OnCollisionBegin(float data)
+		{
+            if (m_CollisionBeginCallbacks != null)
+			    m_CollisionBeginCallbacks.Invoke(data);
+		}
+
+		private void OnCollisionEnd(float data)
+		{
+			if (m_CollisionEndCallbacks != null)
+				m_CollisionEndCallbacks.Invoke(data);
+		}
+
+        private void OnTriggerBegin(float data)
+		{
+            if (m_TriggerBeginCallbacks != null)
+                m_TriggerBeginCallbacks.Invoke(data);
+        }
+
+        private void OnTriggerEnd(float data)
+		{
+			if (m_TriggerEndCallbacks != null)
+				m_TriggerEndCallbacks.Invoke(data);
+		}
+
+		private void OnCollision2DBegin(float data)
         {
-            foreach (var callback in m_Collision2DBeginCallbacks)
-                callback.Invoke(data);
+            m_Collision2DBeginCallbacks.Invoke(data);
         }
 
         private void OnCollision2DEnd(float data)
         {
-            foreach (var callback in m_Collision2DEndCallbacks)
-                callback.Invoke(data);
+            m_Collision2DEndCallbacks.Invoke(data);
         }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
+		[MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void CreateComponent_Native(ulong entityID, Type type);
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool HasComponent_Native(ulong entityID, Type type);
-        [MethodImpl(MethodImplOptions.InternalCall)] 
-        private static extern void GetTransform_Native(ulong entityID, out Matrix4 matrix);
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern void SetTransform_Native(ulong entityID, ref Matrix4 matrix);
-        [MethodImpl(MethodImplOptions.InternalCall)]
+		[MethodImpl(MethodImplOptions.InternalCall)]
         private static extern ulong FindEntityByTag_Native(string tag);
-
     }
 }

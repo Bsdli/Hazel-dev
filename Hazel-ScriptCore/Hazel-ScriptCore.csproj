@@ -59,11 +59,16 @@
     <Compile Include="src\Hazel\Entity.cs" />
     <Compile Include="src\Hazel\Input.cs" />
     <Compile Include="src\Hazel\KeyCodes.cs" />
+    <Compile Include="src\Hazel\Math\Mathf.cs" />
     <Compile Include="src\Hazel\Math\Matrix4.cs" />
     <Compile Include="src\Hazel\Math\Noise.cs" />
+    <Compile Include="src\Hazel\Math\Transform.cs" />
     <Compile Include="src\Hazel\Math\Vector2.cs" />
     <Compile Include="src\Hazel\Math\Vector3.cs" />
     <Compile Include="src\Hazel\Math\Vector4.cs" />
+    <Compile Include="src\Hazel\Physics\Collider.cs" />
+    <Compile Include="src\Hazel\Physics\ForceMode.cs" />
+    <Compile Include="src\Hazel\Physics\Physics.cs" />
     <Compile Include="src\Hazel\Renderer\Color.cs" />
     <Compile Include="src\Hazel\Renderer\Material.cs" />
     <Compile Include="src\Hazel\Renderer\Mesh.cs" />

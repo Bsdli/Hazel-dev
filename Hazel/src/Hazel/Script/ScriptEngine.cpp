@@ -10,9 +10,6 @@
 #include <chrono>
 #include <thread>
 
-#include <Windows.h>
-#include <winioctl.h>
-
 #include "ScriptEngineRegistry.h"
 
 #include "Hazel/Scene/Scene.h"
@@ -40,20 +37,32 @@ namespace Hazel {
 		std::string NamespaceName;
 
 		MonoClass* Class = nullptr;
+		MonoMethod* Constructor = nullptr;
 		MonoMethod* OnCreateMethod = nullptr;
 		MonoMethod* OnDestroyMethod = nullptr;
 		MonoMethod* OnUpdateMethod = nullptr;
+		MonoMethod* OnPhysicsUpdateMethod = nullptr;
 
 		// Physics
+		MonoMethod* OnCollisionBeginMethod = nullptr;
+		MonoMethod* OnCollisionEndMethod = nullptr;
+		MonoMethod* OnTriggerBeginMethod = nullptr;
+		MonoMethod* OnTriggerEndMethod = nullptr;
 		MonoMethod* OnCollision2DBeginMethod = nullptr;
 		MonoMethod* OnCollision2DEndMethod = nullptr;
 
 		void InitClassMethods(MonoImage* image)
 		{
+			Constructor = GetMethod(s_CoreAssemblyImage, "Hazel.Entity:.ctor(ulong)");
 			OnCreateMethod = GetMethod(image, FullName + ":OnCreate()");
 			OnUpdateMethod = GetMethod(image, FullName + ":OnUpdate(single)");
+			OnPhysicsUpdateMethod = GetMethod(image, FullName + ":OnPhysicsUpdate(single)");
 
 			// Physics (Entity class)
+			OnCollisionBeginMethod = GetMethod(s_CoreAssemblyImage, "Hazel.Entity:OnCollisionBegin(single)");
+			OnCollisionEndMethod = GetMethod(s_CoreAssemblyImage, "Hazel.Entity:OnCollisionEnd(single)");
+			OnTriggerBeginMethod = GetMethod(s_CoreAssemblyImage, "Hazel.Entity:OnTriggerBegin(single)");
+			OnTriggerEndMethod = GetMethod(s_CoreAssemblyImage, "Hazel.Entity:OnTriggerEnd(single)");
 			OnCollision2DBeginMethod = GetMethod(s_CoreAssemblyImage, "Hazel.Entity:OnCollision2DBegin(single)");
 			OnCollision2DEndMethod = GetMethod(s_CoreAssemblyImage, "Hazel.Entity:OnCollision2DEnd(single)");
 		}
@@ -341,19 +350,14 @@ namespace Hazel {
 
 	void ScriptEngine::OnCreateEntity(Entity entity)
 	{
-		OnCreateEntity(entity.m_Scene->GetUUID(), entity.GetComponent<IDComponent>().ID);
-	}
-
-	void ScriptEngine::OnCreateEntity(UUID sceneID, UUID entityID)
-	{
-		EntityInstance& entityInstance = GetEntityInstanceData(sceneID, entityID).Instance;
+		EntityInstance& entityInstance = GetEntityInstanceData(entity.GetSceneUUID(), entity.GetUUID()).Instance;
 		if (entityInstance.ScriptClass->OnCreateMethod)
 			CallMethod(entityInstance.GetInstance(), entityInstance.ScriptClass->OnCreateMethod);
 	}
 
-	void ScriptEngine::OnUpdateEntity(UUID sceneID, UUID entityID, Timestep ts)
+	void ScriptEngine::OnUpdateEntity(Entity entity, Timestep ts)
 	{
-		EntityInstance& entityInstance = GetEntityInstanceData(sceneID, entityID).Instance;
+		EntityInstance& entityInstance = GetEntityInstanceData(entity.GetSceneUUID(), entity.GetUUID()).Instance;
 		if (entityInstance.ScriptClass->OnUpdateMethod)
 		{
 			void* args[] = { &ts };
@@ -361,14 +365,19 @@ namespace Hazel {
 		}
 	}
 
-	void ScriptEngine::OnCollision2DBegin(Entity entity)
+	void ScriptEngine::OnPhysicsUpdateEntity(Entity entity, float fixedTimeStep)
 	{
-		OnCollision2DBegin(entity.m_Scene->GetUUID(), entity.GetComponent<IDComponent>().ID);
+		EntityInstance& entityInstance = GetEntityInstanceData(entity.GetSceneUUID(), entity.GetUUID()).Instance;
+		if (entityInstance.ScriptClass->OnPhysicsUpdateMethod)
+		{
+			void* args[] = { &fixedTimeStep };
+			CallMethod(entityInstance.GetInstance(), entityInstance.ScriptClass->OnPhysicsUpdateMethod, args);
+		}
 	}
 
-	void ScriptEngine::OnCollision2DBegin(UUID sceneID, UUID entityID)
+	void ScriptEngine::OnCollision2DBegin(Entity entity)
 	{
-		EntityInstance& entityInstance = GetEntityInstanceData(sceneID, entityID).Instance;
+		EntityInstance& entityInstance = GetEntityInstanceData(entity.GetSceneUUID(), entity.GetUUID()).Instance;
 		if (entityInstance.ScriptClass->OnCollision2DBeginMethod)
 		{
 			float value = 5.0f;
@@ -379,18 +388,122 @@ namespace Hazel {
 
 	void ScriptEngine::OnCollision2DEnd(Entity entity)
 	{
-		OnCollision2DEnd(entity.m_Scene->GetUUID(), entity.GetComponent<IDComponent>().ID);
-	}
-
-	void ScriptEngine::OnCollision2DEnd(UUID sceneID, UUID entityID)
-	{
-		EntityInstance& entityInstance = GetEntityInstanceData(sceneID, entityID).Instance;
+		EntityInstance& entityInstance = GetEntityInstanceData(entity.GetSceneUUID(), entity.GetUUID()).Instance;
 		if (entityInstance.ScriptClass->OnCollision2DEndMethod)
 		{
 			float value = 5.0f;
 			void* args[] = { &value };
 			CallMethod(entityInstance.GetInstance(), entityInstance.ScriptClass->OnCollision2DEndMethod, args);
 		}
+	}
+
+	void ScriptEngine::OnCollisionBegin(Entity entity)
+	{
+		EntityInstance& entityInstance = GetEntityInstanceData(entity.GetSceneUUID(), entity.GetUUID()).Instance;
+		if (entityInstance.ScriptClass->OnCollisionBeginMethod)
+		{
+			float value = 5.0f;
+			void* args[] = { &value };
+			CallMethod(entityInstance.GetInstance(), entityInstance.ScriptClass->OnCollisionBeginMethod, args);
+		}
+	}
+
+	void ScriptEngine::OnCollisionEnd(Entity entity)
+	{
+		EntityInstance& entityInstance = GetEntityInstanceData(entity.GetSceneUUID(), entity.GetUUID()).Instance;
+		if (entityInstance.ScriptClass->OnCollisionEndMethod)
+		{
+			float value = 5.0f;
+			void* args[] = { &value };
+			CallMethod(entityInstance.GetInstance(), entityInstance.ScriptClass->OnCollisionEndMethod, args);
+		}
+	}
+
+	void ScriptEngine::OnTriggerBegin(Entity entity)
+	{
+		EntityInstance& entityInstance = GetEntityInstanceData(entity.GetSceneUUID(), entity.GetUUID()).Instance;
+		if (entityInstance.ScriptClass->OnTriggerBeginMethod)
+		{
+			float value = 5.0f;
+			void* args[] = { &value };
+			CallMethod(entityInstance.GetInstance(), entityInstance.ScriptClass->OnTriggerBeginMethod, args);
+		}
+	}
+
+	void ScriptEngine::OnTriggerEnd(Entity entity)
+	{
+		EntityInstance& entityInstance = GetEntityInstanceData(entity.GetSceneUUID(), entity.GetUUID()).Instance;
+		if (entityInstance.ScriptClass->OnTriggerEndMethod)
+		{
+			float value = 5.0f;
+			void* args[] = { &value };
+			CallMethod(entityInstance.GetInstance(), entityInstance.ScriptClass->OnTriggerEndMethod, args);
+		}
+	}
+
+	MonoObject* ScriptEngine::Construct(const std::string& fullName, bool callConstructor, void** parameters)
+	{
+		std::string namespaceName;
+		std::string className;
+		std::string parameterList;
+
+		if (fullName.find(".") != std::string::npos)
+		{
+			namespaceName = fullName.substr(0, fullName.find_first_of('.'));
+			className = fullName.substr(fullName.find_first_of('.') + 1, (fullName.find_first_of(':') - fullName.find_first_of('.')) - 1);
+
+		}
+
+		if (fullName.find(":") != std::string::npos)
+		{
+			parameterList = fullName.substr(fullName.find_first_of(':'));
+		}
+
+		MonoClass* clazz = mono_class_from_name(s_CoreAssemblyImage, namespaceName.c_str(), className.c_str());
+		MonoObject* obj = mono_object_new(mono_domain_get(), clazz);
+		
+		if (callConstructor)
+		{
+			MonoMethodDesc* desc = mono_method_desc_new(parameterList.c_str(), NULL);
+			MonoMethod* constructor = mono_method_desc_search_in_class(desc, clazz);
+			MonoObject* exception = nullptr;
+			mono_runtime_invoke(constructor, obj, parameters, &exception);
+		}
+
+		return obj;
+	}
+
+	static std::unordered_map<std::string, MonoClass*> s_Classes;
+	MonoClass* ScriptEngine::GetCoreClass(const std::string& fullName)
+	{
+		if (s_Classes.find(fullName) != s_Classes.end())
+			return s_Classes[fullName];
+
+		std::string namespaceName = "";
+		std::string className;
+
+		if (fullName.find('.') != std::string::npos)
+		{
+			namespaceName = fullName.substr(0, fullName.find_last_of('.'));
+			className = fullName.substr(fullName.find_last_of('.') + 1);
+		}
+		else
+		{
+			className = fullName;
+		}
+
+		MonoClass* monoClass = mono_class_from_name(s_CoreAssemblyImage, namespaceName.c_str(), className.c_str());
+		if (!monoClass)
+			std::cout << "mono_class_from_name failed" << std::endl;
+
+		s_Classes[fullName] = monoClass;
+
+		return monoClass;
+	}
+
+	bool ScriptEngine::IsEntityModuleValid(Entity entity)
+	{
+		return entity.HasComponent<ScriptComponent>() && ModuleExists(entity.GetComponent<ScriptComponent>().ModuleName);
 	}
 
 	void ScriptEngine::OnScriptComponentDestroyed(UUID sceneID, UUID entityID)
@@ -546,11 +659,8 @@ namespace Hazel {
 		HZ_CORE_ASSERT(entityInstance.ScriptClass);
 		entityInstance.Handle = Instantiate(*entityInstance.ScriptClass);
 
-		MonoProperty* entityIDPropery = mono_class_get_property_from_name(entityInstance.ScriptClass->Class, "ID");
-		mono_property_get_get_method(entityIDPropery);
-		MonoMethod* entityIDSetMethod = mono_property_get_set_method(entityIDPropery);
 		void* param[] = { &id };
-		CallMethod(entityInstance.GetInstance(), entityIDSetMethod, param);
+		CallMethod(entityInstance.GetInstance(), entityInstance.ScriptClass->Constructor, param);
 
 		// Set all public fields to appropriate values
 		ScriptModuleFieldMap& moduleFieldMap = entityInstanceData.ModuleFieldMap;

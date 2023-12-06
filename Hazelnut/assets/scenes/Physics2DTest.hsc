@@ -11,7 +11,7 @@ Entities:
       Tag: Box
     TransformComponent:
       Position: [-18.2095661, 39.2518234, 0]
-      Rotation: [0.967056513, 0, 0, -0.254561812]
+      Rotation: [0, 0, 0]
       Scale: [4.47999525, 4.47999525, 4.48000002]
     MeshComponent:
       AssetPath: assets\meshes\Cube1m.fbx
@@ -26,7 +26,7 @@ Entities:
       Tag: Box
     TransformComponent:
       Position: [5.37119865, 43.8762894, 0]
-      Rotation: [0.977883637, 0, 0, -0.209149718]
+      Rotation: [0, 0, 0]
       Scale: [4.47999668, 4.47999668, 4.48000002]
     MeshComponent:
       AssetPath: assets\meshes\Cube1m.fbx
@@ -41,7 +41,7 @@ Entities:
       Tag: Box
     TransformComponent:
       Position: [-7.60411549, 44.1442184, 0]
-      Rotation: [0.989285827, 0, 0, 0.145991713]
+      Rotation: [0, 0, 0]
       Scale: [4.47999287, 4.47999287, 4.48000002]
     MeshComponent:
       AssetPath: assets\meshes\Cube1m.fbx
@@ -56,7 +56,7 @@ Entities:
       Tag: Box
     TransformComponent:
       Position: [-0.739211679, 37.7653275, 0]
-      Rotation: [0.956475914, 0, 0, -0.291811317]
+      Rotation: [0, 0, 0]
       Scale: [5, 2, 2]
     MeshComponent:
       AssetPath: assets\meshes\Cube1m.fbx
@@ -71,7 +71,7 @@ Entities:
       Tag: Box
     TransformComponent:
       Position: [-8.32969856, 30.4078159, 0]
-      Rotation: [0.781595349, 0, 0, 0.623785794]
+      Rotation: [0, 0, 0]
       Scale: [14.000001, 4.47999334, 4.48000002]
     MeshComponent:
       AssetPath: assets\meshes\Cube1m.fbx
@@ -86,7 +86,7 @@ Entities:
       Tag: Box
     TransformComponent:
       Position: [6.88031197, 31.942337, 0]
-      Rotation: [0.986578286, 0, 0, 0.163288936]
+      Rotation: [0, 0, 0]
       Scale: [4.47999954, 4.47999954, 4.48000002]
     MeshComponent:
       AssetPath: assets\meshes\Cube1m.fbx
@@ -101,7 +101,7 @@ Entities:
       Tag: Player
     TransformComponent:
       Position: [0, 22.774044, 0]
-      Rotation: [0.942591429, 0, 0, -0.333948225]
+      Rotation: [0, 0, 0]
       Scale: [6.00000048, 6.00000048, 4.48000002]
     ScriptComponent:
       ModuleName: Example.PlayerCube
@@ -125,7 +125,7 @@ Entities:
       Tag: Cube
     TransformComponent:
       Position: [0, 0, 0]
-      Rotation: [1, 0, 0, 0]
+      Rotation: [0, 0, 0]
       Scale: [50, 1, 50]
     ScriptComponent:
       ModuleName: Example.Sink
@@ -146,7 +146,7 @@ Entities:
       Tag: Camera
     TransformComponent:
       Position: [0, 25, 79.75]
-      Rotation: [0.995602965, -0.0936739072, 0, 0]
+      Rotation: [0, 0, 0]
       Scale: [1, 0.999999821, 0.999999821]
     ScriptComponent:
       ModuleName: Example.BasicController
@@ -162,7 +162,7 @@ Entities:
       Tag: Box
     TransformComponent:
       Position: [-1.48028564, 49.5945244, -2.38418579e-07]
-      Rotation: [0.977883637, 0, 0, -0.209149733]
+      Rotation: [0, 0, 0]
       Scale: [1.99999976, 1.99999976, 2]
     MeshComponent:
       AssetPath: assets\meshes\Cube1m.fbx

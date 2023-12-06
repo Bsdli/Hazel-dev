@@ -11,6 +11,7 @@
 extern "C" {
 	typedef struct _MonoObject MonoObject;
 	typedef struct _MonoClassField MonoClassField;
+	typedef struct _MonoClass MonoClass;
 }
 
 namespace Hazel {
@@ -117,13 +118,20 @@ namespace Hazel {
 		static void CopyEntityScriptData(UUID dst, UUID src);
 
 		static void OnCreateEntity(Entity entity);
-		static void OnCreateEntity(UUID sceneID, UUID entityID);
-		static void OnUpdateEntity(UUID sceneID, UUID entityID, Timestep ts);
+		static void OnUpdateEntity(Entity entity, Timestep ts);
+		static void OnPhysicsUpdateEntity(Entity entity, float fixedTimeStep);
 
 		static void OnCollision2DBegin(Entity entity);
-		static void OnCollision2DBegin(UUID sceneID, UUID entityID);
 		static void OnCollision2DEnd(Entity entity);
-		static void OnCollision2DEnd(UUID sceneID, UUID entityID);
+		static void OnCollisionBegin(Entity entity);
+		static void OnCollisionEnd(Entity entity);
+		static void OnTriggerBegin(Entity entity);
+		static void OnTriggerEnd(Entity entity);
+
+		static MonoObject* Construct(const std::string& fullName, bool callConstructor = true, void** parameters = nullptr);
+		static MonoClass* GetCoreClass(const std::string& fullName);
+
+		static bool IsEntityModuleValid(Entity entity);
 
 		static void OnScriptComponentDestroyed(UUID sceneID, UUID entityID);
 

@@ -17,20 +17,34 @@ void main()
 #version 430
 
 layout(location = 0) out vec4 o_Color;
+layout(location = 1) out vec4 o_BloomTexture;
 
 in vec2 v_TexCoord;
 
 uniform sampler2DMS u_Texture;
+
 uniform float u_Exposure;
 uniform int u_TextureSamples;
 
-vec4 MultiSampleTexture(sampler2DMS tex, ivec2 texCoord, int samples)
+uniform bool u_EnableBloom;
+uniform float u_BloomThreshold;
+
+const float uFar = 1.0;
+
+vec4 SampleTexture(sampler2D tex, vec2 texCoord)
 {
-    vec4 result = vec4(0.0);
-    for (int i = 0; i < samples; i++)
+    return texture(tex, texCoord);
+}
+
+vec4 MultiSampleTexture(sampler2DMS tex, vec2 tc)
+{
+	ivec2 texSize = textureSize(tex);
+	ivec2 texCoord = ivec2(tc * texSize);
+	vec4 result = vec4(0.0);
+    for (int i = 0; i < u_TextureSamples; i++)
         result += texelFetch(tex, texCoord, i);
 
-    result /= float(samples);
+    result /= float(u_TextureSamples);
     return result;
 }
 
@@ -39,11 +53,19 @@ void main()
 	const float gamma     = 2.2;
 	const float pureWhite = 1.0;
 
-	ivec2 texSize = textureSize(u_Texture);
-	ivec2 texCoord = ivec2(v_TexCoord * texSize);
-	vec4 msColor = MultiSampleTexture(u_Texture, texCoord, u_TextureSamples);
+	// Tonemapping
+	vec4 msColor = MultiSampleTexture(u_Texture, v_TexCoord);
 
-	vec3 color = msColor.rgb * u_Exposure;//texture(u_Texture, v_TexCoord).rgb * u_Exposure;
+	vec3 color = msColor.rgb;
+
+	if (u_EnableBloom)
+	{
+		vec3 bloomColor = MultiSampleTexture(u_Texture, v_TexCoord).rgb;
+		color += bloomColor;
+	}
+
+	color *= u_Exposure;
+
 	// Reinhard tonemapping operator.
 	// see: "Photographic Tone Reproduction for Digital Images", eq. 4
 	float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
@@ -54,4 +76,8 @@ void main()
 
 	// Gamma correction.
 	o_Color = vec4(pow(mappedColor, vec3(1.0 / gamma)), 1.0);
+
+	// Show over-exposed areas
+	// if (o_Color.r > 1.0 || o_Color.g > 1.0 || o_Color.b > 1.0)
+	// 	o_Color.rgb *= vec3(1.0, 0.25, 0.25);
 }

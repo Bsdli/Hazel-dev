@@ -30,23 +30,25 @@ namespace Hazel
             Y = vector.Y;
         }
 
-        public void Clamp(Vector2 min, Vector2 max)
-        {
-            if (X < min.X)
-                X = min.X;
-            if (X > max.X)
-                X = max.X;
+		public void Clamp(Vector2 min, Vector2 max)
+		{
+			X = Mathf.Clamp(X, min.X, max.X);
+			Y = Mathf.Clamp(Y, min.Y, max.Y);
+		}
 
-            if (Y < min.Y)
-                Y = min.Y;
-            if (Y > max.Y)
-                Y = max.Y;
-        }
+		public static Vector2 operator-(Vector2 left, Vector2 right)
+		{
+            return new Vector2(left.X - right.X, left.Y - right.Y);
+		}
 
-        public static Vector2 operator -(Vector2 vector)
+        public static Vector2 operator-(Vector2 vector)
         {
             return new Vector2(-vector.X, -vector.Y);
         }
 
-    }
+		public override string ToString()
+		{
+			return "Vector2[" + X + ", " + Y + "]";
+		}
+	}
 }

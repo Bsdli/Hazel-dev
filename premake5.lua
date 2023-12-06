@@ -28,9 +28,17 @@ IncludeDir["Box2D"] = "Hazel/vendor/Box2D/include"
 IncludeDir["entt"] = "Hazel/vendor/entt/include"
 IncludeDir["FastNoise"] = "Hazel/vendor/FastNoise"
 IncludeDir["mono"] = "Hazel/vendor/mono/include"
+IncludeDir["PhysX"] = "Hazel/vendor/PhysX/include"
 
 LibraryDir = {}
 LibraryDir["mono"] = "vendor/mono/lib/Debug/mono-2.0-sgen.lib"
+LibraryDir["PhysX"] = "vendor/PhysX/lib/%{cfg.buildcfg}/PhysX_static_64.lib"
+LibraryDir["PhysXCharacterKinematic"] = "vendor/PhysX/lib/%{cfg.buildcfg}/PhysXCharacterKinematic_static_64.lib"
+LibraryDir["PhysXCommon"] = "vendor/PhysX/lib/%{cfg.buildcfg}/PhysXCommon_static_64.lib"
+LibraryDir["PhysXCooking"] = "vendor/PhysX/lib/%{cfg.buildcfg}/PhysXCooking_static_64.lib"
+LibraryDir["PhysXExtensions"] = "vendor/PhysX/lib/%{cfg.buildcfg}/PhysXExtensions_static_64.lib"
+LibraryDir["PhysXFoundation"] = "vendor/PhysX/lib/%{cfg.buildcfg}/PhysXFoundation_static_64.lib"
+LibraryDir["PhysXPvd"] = "vendor/PhysX/lib/%{cfg.buildcfg}/PhysXPvdSDK_static_64.lib"
 
 group "Dependencies"
 include "Hazel/vendor/GLFW"
@@ -79,6 +87,7 @@ project "Hazel"
 		"%{IncludeDir.entt}",
 		"%{IncludeDir.mono}",
 		"%{IncludeDir.FastNoise}",
+		"%{IncludeDir.PhysX}",
 		"%{prj.name}/vendor/assimp/include",
 		"%{prj.name}/vendor/stb/include",
 		"%{prj.name}/vendor/yaml-cpp/include"
@@ -91,7 +100,19 @@ project "Hazel"
 		"ImGui",
 		"Box2D",
 		"opengl32.lib",
-		"%{LibraryDir.mono}"
+		"%{LibraryDir.mono}",
+		"%{LibraryDir.PhysX}",
+		"%{LibraryDir.PhysXCharacterKinematic}",
+		"%{LibraryDir.PhysXCommon}",
+		"%{LibraryDir.PhysXCooking}",
+		"%{LibraryDir.PhysXExtensions}",
+		"%{LibraryDir.PhysXFoundation}",
+		"%{LibraryDir.PhysXPvd}"
+	}
+
+	defines
+	{
+		"PX_PHYSX_STATIC_LIB"
 	}
 	
 	filter "files:Hazel/vendor/FastNoise/**.cpp or files:Hazel/vendor/yaml-cpp/src/**.cpp"
@@ -111,7 +132,12 @@ project "Hazel"
 		symbols "On"
 				
 	filter "configurations:Release"
-		defines "HZ_RELEASE"
+		defines
+		{
+			"HZ_RELEASE",
+			"NDEBUG" -- PhysX Requires This
+		}
+
 		optimize "On"
 
 	filter "configurations:Dist"
@@ -206,6 +232,7 @@ project "Hazelnut"
 		{
 			'{COPY} "../Hazel/vendor/assimp/bin/Release/assimp-vc141-mt.dll" "%{cfg.targetdir}"',
 			'{COPY} "../Hazel/vendor/mono/bin/Debug/mono-2.0-sgen.dll" "%{cfg.targetdir}"'
+
 		}
 
 	filter "configurations:Dist"

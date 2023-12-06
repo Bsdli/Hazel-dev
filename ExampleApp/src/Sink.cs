@@ -20,13 +20,13 @@ namespace Example
 
         void OnUpdate(float ts)
         {
-            Matrix4 transform = GetTransform();
+           /* Matrix4 transform = GetTransform();
             Vector3 translation = transform.Translation;
 
             translation.Y -= SinkSpeed * ts;
 
             transform.Translation = translation;
-            SetTransform(transform);
+            SetTransform(transform);*/
         }
 
     }

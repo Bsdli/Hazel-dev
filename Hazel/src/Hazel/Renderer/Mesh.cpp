@@ -21,6 +21,8 @@
 #include "Hazel/Renderer/Renderer.h"
 #include "Hazel/Renderer/VertexBuffer.h"
 
+#include "Hazel/Physics/PhysicsUtil.h"
+
 #include <filesystem>
 
 namespace Hazel {
@@ -65,7 +67,7 @@ namespace Hazel {
 
 		virtual void write(const char* message) override
 		{
-			HZ_CORE_ERROR("Assimp error: {0}", message);
+			HZ_CORE_WARN("Assimp: {0}", message);
 		}
 	};
 
@@ -103,9 +105,10 @@ namespace Hazel {
 			submesh.BaseIndex = indexCount;
 			submesh.MaterialIndex = mesh->mMaterialIndex;
 			submesh.IndexCount = mesh->mNumFaces * 3;
+			submesh.VertexCount = mesh->mNumVertices;
 			submesh.MeshName = mesh->mName.C_Str();
 
-			vertexCount += mesh->mNumVertices;
+			vertexCount += submesh.VertexCount;
 			indexCount += submesh.IndexCount;
 
 			HZ_CORE_ASSERT(mesh->HasPositions(), "Meshes require positions.");
@@ -497,6 +500,30 @@ namespace Hazel {
 		m_Pipeline = Pipeline::Create(pipelineSpecification);
 	}
 
+	Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<Index>& indices, const glm::mat4& transform)
+		: m_StaticVertices(vertices), m_Indices(indices), m_IsAnimated(false)
+	{
+		Submesh submesh;
+		submesh.BaseVertex = 0;
+		submesh.BaseIndex = 0;
+		submesh.IndexCount = indices.size() * 3;
+		submesh.Transform = transform;
+		m_Submeshes.push_back(submesh);
+
+		m_VertexBuffer = VertexBuffer::Create(m_StaticVertices.data(), m_StaticVertices.size() * sizeof(Vertex));
+		m_IndexBuffer = IndexBuffer::Create(m_Indices.data(), m_Indices.size() * sizeof(Index));
+
+		PipelineSpecification pipelineSpecification;
+		pipelineSpecification.Layout = {
+			{ ShaderDataType::Float3, "a_Position" },
+			{ ShaderDataType::Float3, "a_Normal" },
+			{ ShaderDataType::Float3, "a_Tangent" },
+			{ ShaderDataType::Float3, "a_Binormal" },
+			{ ShaderDataType::Float2, "a_TexCoord" },
+		};
+		m_Pipeline = Pipeline::Create(pipelineSpecification);
+	}
+
 	Mesh::~Mesh()
 	{
 	}
@@ -529,13 +556,15 @@ namespace Hazel {
 
 	void Mesh::TraverseNodes(aiNode* node, const glm::mat4& parentTransform, uint32_t level)
 	{
-		glm::mat4 transform = parentTransform * Mat4FromAssimpMat4(node->mTransformation);
+		glm::mat4 localTransform = Mat4FromAssimpMat4(node->mTransformation);
+		glm::mat4 transform = parentTransform * localTransform;
 		for (uint32_t i = 0; i < node->mNumMeshes; i++)
 		{
 			uint32_t mesh = node->mMeshes[i];
 			auto& submesh = m_Submeshes[mesh];
 			submesh.NodeName = node->mName.C_Str();
 			submesh.Transform = transform;
+			submesh.LocalTransform = localTransform;
 		}
 
 		// HZ_MESH_LOG("{0} {1}", LevelToSpaces(level), node->mName.C_Str());
