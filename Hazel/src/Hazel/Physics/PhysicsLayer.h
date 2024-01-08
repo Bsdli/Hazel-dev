@@ -11,7 +11,7 @@ namespace Hazel {
 
 		bool IsValid() const
 		{
-			return LayerID >= 0 && !Name.empty() && BitValue > 0;
+			return !Name.empty() && BitValue > 0;
 		}
 	};
 
@@ -25,6 +25,7 @@ namespace Hazel {
 		static std::vector<PhysicsLayer> GetLayerCollisions(uint32_t layerId);
 
 		static const std::vector<PhysicsLayer>& GetLayers() { return s_Layers; }
+		static const std::vector<std::string>& GetLayerNames() { return s_LayerNames; }
 
 		static PhysicsLayer& GetLayer(uint32_t layerId);
 		static PhysicsLayer& GetLayer(const std::string& layerName);
@@ -38,6 +39,7 @@ namespace Hazel {
 
 	private:
 		static std::vector<PhysicsLayer> s_Layers;
+		static std::vector<std::string> s_LayerNames;
 		static PhysicsLayer s_NullLayer;
 	};
 

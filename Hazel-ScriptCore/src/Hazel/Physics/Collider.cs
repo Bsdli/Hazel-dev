@@ -50,7 +50,7 @@ namespace Hazel
 		public Vector3 Size { get; protected set; }
 		public Vector3 Offset { get; protected set; }
 
-		private BoxCollider(ulong entityID, bool isTrigger, Vector3 size, Vector3 offset)
+		internal BoxCollider(ulong entityID, bool isTrigger, Vector3 size, Vector3 offset)
         {
 			EntityID = entityID;
 			IsTrigger = isTrigger;
@@ -63,7 +63,7 @@ namespace Hazel
 	{
         public float Radius { get; protected set; }
 
-        private SphereCollider(ulong entityID, bool isTrigger, float radius)
+        internal SphereCollider(ulong entityID, bool isTrigger, float radius)
         {
             EntityID = entityID;
             IsTrigger = isTrigger;
@@ -76,7 +76,7 @@ namespace Hazel
         public float Radius { get; protected set; }
 		public float Height { get; protected set; }
 
-        private CapsuleCollider(ulong entityID, bool isTrigger, float radius, float height)
+		internal CapsuleCollider(ulong entityID, bool isTrigger, float radius, float height)
         {
             EntityID = entityID;
             IsTrigger = isTrigger;
@@ -89,7 +89,7 @@ namespace Hazel
 	{
         public Mesh Mesh { get; protected set; }
 
-		private MeshCollider(ulong entityID, bool isTrigger, IntPtr mesh)
+		internal MeshCollider(ulong entityID, bool isTrigger, IntPtr mesh)
         {
             EntityID = entityID;
 			IsTrigger = isTrigger;

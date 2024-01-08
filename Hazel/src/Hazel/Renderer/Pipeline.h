@@ -4,13 +4,17 @@
 
 #include "Hazel/Renderer/VertexBuffer.h"
 #include "Hazel/Renderer/Shader.h"
+#include "Hazel/Renderer/RenderPass.h"
 
 namespace Hazel {
 
 	struct PipelineSpecification
 	{
-		Ref<Hazel::Shader> Shader;
+		Ref<Shader> Shader;
 		VertexBufferLayout Layout;
+		Ref<RenderPass> RenderPass;
+
+		std::string DebugName;
 	};
 
 	class Pipeline : public RefCounted

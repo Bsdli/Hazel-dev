@@ -64,6 +64,12 @@ namespace Hazel {
 
 		mono_add_internal_call("Hazel.TransformComponent::GetTransform_Native", Hazel::Script::Hazel_TransformComponent_GetTransform);
 		mono_add_internal_call("Hazel.TransformComponent::SetTransform_Native", Hazel::Script::Hazel_TransformComponent_SetTransform);
+		mono_add_internal_call("Hazel.TransformComponent::GetTranslation_Native", Hazel::Script::Hazel_TransformComponent_GetTranslation);
+		mono_add_internal_call("Hazel.TransformComponent::SetTranslation_Native", Hazel::Script::Hazel_TransformComponent_SetTranslation);
+		mono_add_internal_call("Hazel.TransformComponent::GetRotation_Native", Hazel::Script::Hazel_TransformComponent_GetRotation);
+		mono_add_internal_call("Hazel.TransformComponent::SetRotation_Native", Hazel::Script::Hazel_TransformComponent_SetRotation);
+		mono_add_internal_call("Hazel.TransformComponent::GetScale_Native", Hazel::Script::Hazel_TransformComponent_GetScale);
+		mono_add_internal_call("Hazel.TransformComponent::SetScale_Native", Hazel::Script::Hazel_TransformComponent_SetScale);
 
 		mono_add_internal_call("Hazel.MeshComponent::GetMesh_Native", Hazel::Script::Hazel_MeshComponent_GetMesh);
 		mono_add_internal_call("Hazel.MeshComponent::SetMesh_Native", Hazel::Script::Hazel_MeshComponent_SetMesh);

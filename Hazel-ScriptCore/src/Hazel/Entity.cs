@@ -26,6 +26,42 @@ namespace Hazel
         {
         }
 
+        public Vector3 Translation
+        {
+            get
+            {
+                return GetComponent<TransformComponent>().Translation;
+            }
+            set
+            {
+                GetComponent<TransformComponent>().Translation = value;
+            }
+        }
+
+        public Vector3 Rotation
+        {
+            get
+            {
+                return GetComponent<TransformComponent>().Rotation;
+            }
+            set
+            {
+                GetComponent<TransformComponent>().Rotation = value;
+            }
+        }
+
+        public Vector3 Scale
+        {
+            get
+            {
+                return GetComponent<TransformComponent>().Scale;
+            }
+            set
+            {
+                GetComponent<TransformComponent>().Scale = value;
+            }
+        }
+
         public T CreateComponent<T>() where T : Component, new()
         {
             CreateComponent_Native(ID, typeof(T));
@@ -130,7 +166,7 @@ namespace Hazel
         private static extern void CreateComponent_Native(ulong entityID, Type type);
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool HasComponent_Native(ulong entityID, Type type);
-		[MethodImpl(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern ulong FindEntityByTag_Native(string tag);
     }
 }

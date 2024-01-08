@@ -10,6 +10,7 @@
 #include "Hazel/Renderer/Mesh.h"
 #include "Hazel/Renderer/SceneEnvironment.h"
 #include "Hazel/Scene/SceneCamera.h"
+#include "Hazel/Asset/Asset.h"
 
 namespace Hazel {
 
@@ -31,11 +32,26 @@ namespace Hazel {
 		operator const std::string& () const { return Tag; }
 	};
 
+	struct RelationshipComponent
+	{
+		UUID ParentHandle = 0;
+		std::vector<UUID> Children;
+
+		RelationshipComponent() = default;
+		RelationshipComponent(const RelationshipComponent& other) = default;
+		RelationshipComponent(UUID parent)
+			: ParentHandle(parent) {}
+	};
+
 	struct TransformComponent
 	{
-		glm::vec3 Translation = { 0.0F, 0.0F, 0.0F };
-		glm::vec3 Rotation = { 0.0F, 0.0F, 0.0F };
-		glm::vec3 Scale = { 1.0F, 1.0F, 1.0F };
+		glm::vec3 Translation = { 0.0f, 0.0f, 0.0f };
+		glm::vec3 Rotation = { 0.0f, 0.0f, 0.0f };
+		glm::vec3 Scale = { 1.0f, 1.0f, 1.0f };
+
+		glm::vec3 Up = { 0.0F, 1.0F, 0.0F };
+		glm::vec3 Right = { 1.0F, 0.0F, 0.0F };
+		glm::vec3 Forward = { 0.0F, 0.0F, -1.0F };
 
 		TransformComponent() = default;
 		TransformComponent(const TransformComponent& other) = default;
@@ -44,9 +60,9 @@ namespace Hazel {
 
 		glm::mat4 GetTransform() const
 		{
-			return glm::translate(glm::mat4(1.0F), Translation)
+			return glm::translate(glm::mat4(1.0f), Translation)
 				* glm::toMat4(glm::quat(Rotation))
-				* glm::scale(glm::mat4(1.0F), Scale);
+				* glm::scale(glm::mat4(1.0f), Scale);
 		}
 	};
 
@@ -140,9 +156,9 @@ namespace Hazel {
 	struct RigidBodyComponent
 	{
 		enum class Type { Static, Dynamic };
-		Type BodyType;
-		float Mass = 1.0F;
-		float LinearDrag = 0.0F;
+		Type BodyType = Type::Static;
+		float Mass = 1.0f;
+		float LinearDrag = 0.0f;
 		float AngularDrag = 0.05F;
 		bool DisableGravity = false;
 		bool IsKinematic = false;
@@ -159,23 +175,12 @@ namespace Hazel {
 		RigidBodyComponent(const RigidBodyComponent& other) = default;
 	};
 
-	// TODO: This will eventually be a resource, but that requires object referencing through the editor
-	struct PhysicsMaterialComponent
-	{
-		float StaticFriction = 1.0F;
-		float DynamicFriction = 1.0F;
-		float Bounciness = 1.0F;
-
-		PhysicsMaterialComponent() = default;
-		PhysicsMaterialComponent(const PhysicsMaterialComponent& other) = default;
-	};
-
 	struct BoxColliderComponent
 	{
-		glm::vec3 Size = { 1.0F, 1.0F, 1.0F };
-		glm::vec3 Offset = { 0.0F, 0.0F, 0.0F };
-
+		glm::vec3 Size = { 1.0f, 1.0f, 1.0f };
+		glm::vec3 Offset = { 0.0f, 0.0f, 0.0f };
 		bool IsTrigger = false;
+		Ref<PhysicsMaterial> Material;
 
 		// The mesh that will be drawn in the editor to show the collision bounds
 		Ref<Mesh> DebugMesh;
@@ -188,6 +193,7 @@ namespace Hazel {
 	{
 		float Radius = 0.5F;
 		bool IsTrigger = false;
+		Ref<PhysicsMaterial> Material;
 
 		// The mesh that will be drawn in the editor to show the collision bounds
 		Ref<Mesh> DebugMesh;
@@ -199,8 +205,9 @@ namespace Hazel {
 	struct CapsuleColliderComponent
 	{
 		float Radius = 0.5F;
-		float Height = 1.0F;
+		float Height = 1.0f;
 		bool IsTrigger = false;
+		Ref<PhysicsMaterial> Material;
 
 		Ref<Mesh> DebugMesh;
 
@@ -215,6 +222,7 @@ namespace Hazel {
 		bool IsConvex = false;
 		bool IsTrigger = false;
 		bool OverrideMesh = false;
+		Ref<PhysicsMaterial> Material;
 
 		MeshColliderComponent() = default;
 		MeshColliderComponent(const MeshColliderComponent& other) = default;
@@ -242,9 +250,12 @@ namespace Hazel {
 
 	struct SkyLightComponent
 	{
-		Environment SceneEnvironment;
+		Ref<Environment> SceneEnvironment;
 		float Intensity = 1.0f;
 		float Angle = 0.0f;
+
+		bool DynamicSky = false;
+		glm::vec3 TurbidityAzimuthInclination = { 2.0, 0.0, 0.0 };
 	};
 
 }

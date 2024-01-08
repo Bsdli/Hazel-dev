@@ -1,71 +1,48 @@
 #type vertex
-#version 430
+#version 450 core
 
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec2 a_TexCoord;
 
-out vec2 v_TexCoord;
+struct OutputBlock
+{
+	vec2 TexCoord;
+};
+
+layout (location = 0) out OutputBlock Output;
 
 void main()
 {
 	vec4 position = vec4(a_Position.xy, 0.0, 1.0);
-	v_TexCoord = a_TexCoord;
+	Output.TexCoord = a_TexCoord;
 	gl_Position = position;
 }
 
 #type fragment
-#version 430
+#version 450 core
 
 layout(location = 0) out vec4 o_Color;
-layout(location = 1) out vec4 o_BloomTexture;
 
-in vec2 v_TexCoord;
-
-uniform sampler2DMS u_Texture;
-
-uniform float u_Exposure;
-uniform int u_TextureSamples;
-
-uniform bool u_EnableBloom;
-uniform float u_BloomThreshold;
-
-const float uFar = 1.0;
-
-vec4 SampleTexture(sampler2D tex, vec2 texCoord)
+struct OutputBlock
 {
-    return texture(tex, texCoord);
-}
+	vec2 TexCoord;
+};
 
-vec4 MultiSampleTexture(sampler2DMS tex, vec2 tc)
+layout (location = 0) in OutputBlock Input;
+
+layout (binding = 0) uniform sampler2D u_Texture;
+
+layout(push_constant) uniform Uniforms
 {
-	ivec2 texSize = textureSize(tex);
-	ivec2 texCoord = ivec2(tc * texSize);
-	vec4 result = vec4(0.0);
-    for (int i = 0; i < u_TextureSamples; i++)
-        result += texelFetch(tex, texCoord, i);
-
-    result /= float(u_TextureSamples);
-    return result;
-}
+	float Exposure;
+} u_Uniforms;
 
 void main()
 {
 	const float gamma     = 2.2;
 	const float pureWhite = 1.0;
 
-	// Tonemapping
-	vec4 msColor = MultiSampleTexture(u_Texture, v_TexCoord);
-
-	vec3 color = msColor.rgb;
-
-	if (u_EnableBloom)
-	{
-		vec3 bloomColor = MultiSampleTexture(u_Texture, v_TexCoord).rgb;
-		color += bloomColor;
-	}
-
-	color *= u_Exposure;
-
+	vec3 color = texture(u_Texture, Input.TexCoord).rgb * u_Uniforms.Exposure;
 	// Reinhard tonemapping operator.
 	// see: "Photographic Tone Reproduction for Digital Images", eq. 4
 	float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));

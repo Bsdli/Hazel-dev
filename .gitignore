@@ -4,6 +4,8 @@
 !Hazel/vendor/mono/bin
 bin-int/
 obj/
+cache/
+Hazel/vendor/VulkanSDK
 
 # Visual Studio files and folder
 .vs/
@@ -12,3 +14,7 @@ obj/
 **.vcxproj.filters
 **.vcxproj.user
 **.csproj
+**.nsight-gfxproj
+
+# Meta Files
+**.meta

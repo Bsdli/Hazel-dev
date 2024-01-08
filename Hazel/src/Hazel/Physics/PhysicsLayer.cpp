@@ -23,6 +23,7 @@ namespace Hazel {
 		uint32_t layerId = GetNextLayerID();
 		PhysicsLayer layer = { layerId, name, BIT(layerId), BIT(layerId) };
 		s_Layers.insert(s_Layers.begin() + layerId, layer);
+		s_LayerNames.insert(s_LayerNames.begin() + layerId, name);
 
 		if (setCollisions)
 		{
@@ -50,6 +51,7 @@ namespace Hazel {
 			}
 		}
 
+		RemoveIfExists<std::string>(s_LayerNames, [&](const std::string& name) { return name == layerInfo.Name; });
 		RemoveIfExists<PhysicsLayer>(s_Layers, [&](const PhysicsLayer& layer) { return layer.LayerID == layerId; });
 	}
 
@@ -140,5 +142,6 @@ namespace Hazel {
 	}
 
 	std::vector<PhysicsLayer> PhysicsLayerManager::s_Layers;
+	std::vector<std::string> PhysicsLayerManager::s_LayerNames;
 	PhysicsLayer PhysicsLayerManager::s_NullLayer = { 0, "NULL", 0, -1 };
 }

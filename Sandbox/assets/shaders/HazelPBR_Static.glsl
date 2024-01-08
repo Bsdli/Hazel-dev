@@ -10,7 +10,7 @@
 // - Michał Siejak's PBR project (https://github.com/Nadrin)
 // - My implementation from years ago in the Sparky engine (https://github.com/TheCherno/Sparky)
 #type vertex
-#version 430 core
+#version 450 core
 
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec3 a_Normal;
@@ -18,31 +18,42 @@ layout(location = 2) in vec3 a_Tangent;
 layout(location = 3) in vec3 a_Binormal;
 layout(location = 4) in vec2 a_TexCoord;
 
-uniform mat4 u_ViewProjectionMatrix;
-uniform mat4 u_ModelMatrix;
+layout (std140, binding = 0) uniform Camera
+{
+	mat4 u_ViewProjectionMatrix;
+};
 
-out VertexOutput
+layout (push_constant) uniform Transform
+{
+	mat4 u_Transform;
+};
+
+struct VertexOutput
 {
 	vec3 WorldPosition;
     vec3 Normal;
 	vec2 TexCoord;
 	mat3 WorldNormals;
+	mat3 WorldTransform;
 	vec3 Binormal;
-} vs_Output;
+};
+
+layout (location = 0) out VertexOutput Output;
 
 void main()
 {
-	vs_Output.WorldPosition = vec3(u_ModelMatrix * vec4(a_Position, 1.0));
-    vs_Output.Normal = a_Normal;
-	vs_Output.TexCoord = vec2(a_TexCoord.x, 1.0 - a_TexCoord.y);
-	vs_Output.WorldNormals = mat3(u_ModelMatrix) * mat3(a_Tangent, a_Binormal, a_Normal);
-	vs_Output.Binormal = a_Binormal;
+	Output.WorldPosition = vec3(u_Transform * vec4(a_Position, 1.0));
+    Output.Normal = mat3(u_Transform) * a_Normal;
+	Output.TexCoord = a_TexCoord;//vec2(a_TexCoord.x, 1.0 - a_TexCoord.y);
+	Output.WorldNormals = mat3(u_Transform) * mat3(a_Tangent, a_Binormal, a_Normal);
+	Output.WorldTransform = mat3(u_Transform);
+	Output.Binormal = a_Binormal;
 
-	gl_Position = u_ViewProjectionMatrix * u_ModelMatrix * vec4(a_Position, 1.0);
+	gl_Position = u_ViewProjectionMatrix * u_Transform * vec4(a_Position, 1.0);
 }
 
 #type fragment
-#version 430 core
+#version 450 core
 
 const float PI = 3.141592;
 const float Epsilon = 0.00001;
@@ -55,47 +66,52 @@ const vec3 Fdielectric = vec3(0.04);
 struct Light {
 	vec3 Direction;
 	vec3 Radiance;
+	float Multiplier;
 };
 
-in VertexOutput
+struct VertexOutput
 {
 	vec3 WorldPosition;
     vec3 Normal;
 	vec2 TexCoord;
 	mat3 WorldNormals;
+	mat3 WorldTransform;
 	vec3 Binormal;
-} vs_Input;
+};
+
+layout (location = 0) in VertexOutput Input;
 
 layout(location = 0) out vec4 color;
 
-uniform Light lights;
-uniform vec3 u_CameraPosition;
+layout (std140, binding = 1) uniform Environment
+{
+	Light lights;
+	vec3 u_CameraPosition; // Offset = 32
+};
 
 // PBR texture inputs
-uniform sampler2D u_AlbedoTexture;
-uniform sampler2D u_NormalTexture;
-uniform sampler2D u_MetalnessTexture;
-uniform sampler2D u_RoughnessTexture;
+layout (set = 0, binding = 2) uniform sampler2D u_AlbedoTexture;
+layout (set = 0, binding = 3) uniform sampler2D u_NormalTexture;
+layout (set = 0, binding = 4) uniform sampler2D u_MetalnessTexture;
+layout (set = 0, binding = 5) uniform sampler2D u_RoughnessTexture;
 
 // Environment maps
-uniform samplerCube u_EnvRadianceTex;
-uniform samplerCube u_EnvIrradianceTex;
+layout (set = 1, binding = 0) uniform samplerCube u_EnvRadianceTex;
+layout (set = 1, binding = 1) uniform samplerCube u_EnvIrradianceTex;
 
 // BRDF LUT
-uniform sampler2D u_BRDFLUTTexture;
+layout (set = 1, binding = 2) uniform sampler2D u_BRDFLUTTexture;
 
-uniform vec3 u_AlbedoColor;
-uniform float u_Metalness;
-uniform float u_Roughness;
+layout (push_constant) uniform Material
+{
+	layout (offset = 64) vec3 AlbedoColor;
+	float Metalness;
+	float Roughness;
 
-uniform float u_EnvMapRotation;
+	float EnvMapRotation;
 
-// Toggles
-uniform float u_RadiancePrefilter;
-uniform float u_AlbedoTexToggle;
-uniform float u_NormalTexToggle;
-uniform float u_MetalnessTexToggle;
-uniform float u_RoughnessTexToggle;
+	bool UseNormalMap;
+} u_MaterialUniforms;
 
 struct PBRParameters
 {
@@ -219,7 +235,7 @@ vec3 PrefilterEnvMap(float Roughness, vec3 R)
 		float NoL = clamp(dot(N, L), 0.0, 1.0);
 		if (NoL > 0)
 		{
-			PrefilteredColor += texture(u_EnvRadianceTex, L).rgb * NoL;
+			//PrefilteredColor += texture(u_EnvRadianceTex, L).rgb * NoL;
 			TotalWeight += NoL;
 		}
 	}
@@ -243,7 +259,7 @@ vec3 Lighting(vec3 F0)
 	for(int i = 0; i < LightCount; i++)
 	{
 		vec3 Li = -lights.Direction;
-		vec3 Lradiance = lights.Radiance;
+		vec3 Lradiance = lights.Radiance * lights.Multiplier;
 		vec3 Lh = normalize(Li + m_Params.View);
 
 		// Calculate angles between surface normal and various light vectors.
@@ -271,51 +287,46 @@ vec3 IBL(vec3 F0, vec3 Lr)
 	vec3 F = fresnelSchlickRoughness(F0, m_Params.NdotV, m_Params.Roughness);
 	vec3 kd = (1.0 - F) * (1.0 - m_Params.Metalness);
 	vec3 diffuseIBL = m_Params.Albedo * irradiance;
-
-	int u_EnvRadianceTexLevels = textureQueryLevels(u_EnvRadianceTex);
+	
+	int envRadianceTexLevels = textureQueryLevels(u_EnvRadianceTex);
 	float NoV = clamp(m_Params.NdotV, 0.0, 1.0);
 	vec3 R = 2.0 * dot(m_Params.View, m_Params.Normal) * m_Params.Normal - m_Params.View;
-	vec3 specularIrradiance = vec3(0.0);
-
-	if (u_RadiancePrefilter > 0.5)
-		specularIrradiance = PrefilterEnvMap(m_Params.Roughness * m_Params.Roughness, R) * u_RadiancePrefilter;
-	else
-		specularIrradiance = textureLod(u_EnvRadianceTex, RotateVectorAboutY(u_EnvMapRotation, Lr), sqrt(m_Params.Roughness) * u_EnvRadianceTexLevels).rgb * (1.0 - u_RadiancePrefilter);
-
+	vec3 specularIrradiance = textureLod(u_EnvRadianceTex, RotateVectorAboutY(u_MaterialUniforms.EnvMapRotation, Lr), (m_Params.Roughness) * envRadianceTexLevels).rgb;
+	
 	// Sample BRDF Lut, 1.0 - roughness for y-coord because texture was generated (in Sparky) for gloss model
 	vec2 specularBRDF = texture(u_BRDFLUTTexture, vec2(m_Params.NdotV, 1.0 - m_Params.Roughness)).rg;
 	vec3 specularIBL = specularIrradiance * (F * specularBRDF.x + specularBRDF.y);
-
+	
 	return kd * diffuseIBL + specularIBL;
 }
 
 void main()
 {
 	// Standard PBR inputs
-	m_Params.Albedo = u_AlbedoTexToggle > 0.5 ? texture(u_AlbedoTexture, vs_Input.TexCoord).rgb : u_AlbedoColor; 
-	m_Params.Metalness = u_MetalnessTexToggle > 0.5 ? texture(u_MetalnessTexture, vs_Input.TexCoord).r : u_Metalness;
-	m_Params.Roughness = u_RoughnessTexToggle > 0.5 ?  texture(u_RoughnessTexture, vs_Input.TexCoord).r : u_Roughness;
+	m_Params.Albedo = texture(u_AlbedoTexture, Input.TexCoord).rgb * u_MaterialUniforms.AlbedoColor; 
+	m_Params.Metalness = texture(u_MetalnessTexture, Input.TexCoord).r * u_MaterialUniforms.Metalness;
+	m_Params.Roughness = texture(u_RoughnessTexture, Input.TexCoord).r * u_MaterialUniforms.Roughness;
     m_Params.Roughness = max(m_Params.Roughness, 0.05); // Minimum roughness of 0.05 to keep specular highlight
 
 	// Normals (either from vertex or map)
-	m_Params.Normal = normalize(vs_Input.Normal);
-	if (u_NormalTexToggle > 0.5)
+	m_Params.Normal = normalize(Input.Normal);
+	if (u_MaterialUniforms.UseNormalMap)
 	{
-		m_Params.Normal = normalize(2.0 * texture(u_NormalTexture, vs_Input.TexCoord).rgb - 1.0);
-		m_Params.Normal = normalize(vs_Input.WorldNormals * m_Params.Normal);
+		m_Params.Normal = normalize(2.0 * texture(u_NormalTexture, Input.TexCoord).rgb - 1.0);
+		m_Params.Normal = normalize(Input.WorldNormals * m_Params.Normal);
 	}
-
-	m_Params.View = normalize(u_CameraPosition - vs_Input.WorldPosition);
+	
+	m_Params.View = normalize(u_CameraPosition - Input.WorldPosition);
 	m_Params.NdotV = max(dot(m_Params.Normal, m_Params.View), 0.0);
 		
 	// Specular reflection vector
 	vec3 Lr = 2.0 * m_Params.NdotV * m_Params.Normal - m_Params.View;
-
+	
 	// Fresnel reflectance, metals use albedo
 	vec3 F0 = mix(Fdielectric, m_Params.Albedo, m_Params.Metalness);
-
+	
 	vec3 lightContribution = Lighting(F0);
 	vec3 iblContribution = IBL(F0, Lr);
-
-	color = vec4(lightContribution + iblContribution, 1.0);
+	//
+	color = vec4(iblContribution + lightContribution, 1.0);
 }

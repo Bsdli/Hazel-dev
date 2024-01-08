@@ -8,6 +8,8 @@
 #include "Hazel/Physics/PXPhysicsWrappers.h"
 #include "Hazel/Renderer/MeshFactory.h"
 
+#include "Hazel/Asset/AssetManager.h"
+
 #include "yaml-cpp/yaml.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -172,6 +174,23 @@ namespace Hazel {
 		out << YAML::Key << "Entity";
 		out << YAML::Value << uuid;
 
+		if (entity.HasComponent<RelationshipComponent>())
+		{
+			auto& relationshipComponent = entity.GetComponent<RelationshipComponent>();
+			out << YAML::Key << "Parent" << YAML::Value << relationshipComponent.ParentHandle;
+
+			out << YAML::Key << "Children";
+			out << YAML::Value << YAML::BeginSeq;
+
+			for (auto child : relationshipComponent.Children)
+			{
+				out << YAML::BeginMap;
+				out << YAML::Key << "Handle" << YAML::Value << child;
+				out << YAML::EndMap;
+			}
+			out << YAML::EndSeq;
+		}
+
 		if (entity.HasComponent<TagComponent>())
 		{
 			out << YAML::Key << "TagComponent";
@@ -253,7 +272,10 @@ namespace Hazel {
 			out << YAML::BeginMap; // MeshComponent
 
 			auto mesh = entity.GetComponent<MeshComponent>().Mesh;
-			out << YAML::Key << "AssetPath" << YAML::Value << mesh->GetFilePath();
+			if (mesh)
+				out << YAML::Key << "AssetID" << YAML::Value << mesh->Handle;
+			else
+				out << YAML::Key << "AssetID" << YAML::Value << 0;
 
 			out << YAML::EndMap; // MeshComponent
 		}
@@ -300,7 +322,7 @@ namespace Hazel {
 			out << YAML::BeginMap; // SkyLightComponent
 
 			auto& skyLightComponent = entity.GetComponent<SkyLightComponent>();
-			out << YAML::Key << "EnvironmentAssetPath" << YAML::Value << skyLightComponent.SceneEnvironment.FilePath;
+			out << YAML::Key << "EnvironmentMap" << YAML::Value << skyLightComponent.SceneEnvironment->Handle;
 			out << YAML::Key << "Intensity" << YAML::Value << skyLightComponent.Intensity;
 			out << YAML::Key << "Angle" << YAML::Value << skyLightComponent.Angle;
 
@@ -390,19 +412,6 @@ namespace Hazel {
 			out << YAML::EndMap; // RigidBodyComponent
 		}
 
-		if (entity.HasComponent<PhysicsMaterialComponent>())
-		{
-			out << YAML::Key << "PhysicsMaterialComponent";
-			out << YAML::BeginMap; // PhysicsMaterialComponent
-
-			auto& physicsMaterial = entity.GetComponent<PhysicsMaterialComponent>();
-			out << YAML::Key << "StaticFriction" << YAML::Value << physicsMaterial.StaticFriction;
-			out << YAML::Key << "DynamicFriction" << YAML::Value << physicsMaterial.DynamicFriction;
-			out << YAML::Key << "Bounciness" << YAML::Value << physicsMaterial.Bounciness;
-
-			out << YAML::EndMap;
-		}
-
 		if (entity.HasComponent<BoxColliderComponent>())
 		{
 			out << YAML::Key << "BoxColliderComponent";
@@ -412,6 +421,11 @@ namespace Hazel {
 			out << YAML::Key << "Offset" << YAML::Value << boxColliderComponent.Offset;
 			out << YAML::Key << "Size" << YAML::Value << boxColliderComponent.Size;
 			out << YAML::Key << "IsTrigger" << YAML::Value << boxColliderComponent.IsTrigger;
+
+			if (boxColliderComponent.Material)
+				out << YAML::Key << "Material" << YAML::Value << boxColliderComponent.Material->Handle;
+			else
+				out << YAML::Key << "Material" << YAML::Value << 0;
 
 			out << YAML::EndMap; // BoxColliderComponent
 		}
@@ -424,6 +438,11 @@ namespace Hazel {
 			auto& sphereColliderComponent = entity.GetComponent<SphereColliderComponent>();
 			out << YAML::Key << "Radius" << YAML::Value << sphereColliderComponent.Radius;
 			out << YAML::Key << "IsTrigger" << YAML::Value << sphereColliderComponent.IsTrigger;
+
+			if (sphereColliderComponent.Material)
+				out << YAML::Key << "Material" << YAML::Value << sphereColliderComponent.Material->Handle;
+			else
+				out << YAML::Key << "Material" << YAML::Value << 0;
 
 			out << YAML::EndMap; // SphereColliderComponent
 		}
@@ -438,6 +457,11 @@ namespace Hazel {
 			out << YAML::Key << "Height" << YAML::Value << capsuleColliderComponent.Height;
 			out << YAML::Key << "IsTrigger" << YAML::Value << capsuleColliderComponent.IsTrigger;
 
+			if (capsuleColliderComponent.Material)
+				out << YAML::Key << "Material" << YAML::Value << capsuleColliderComponent.Material->Handle;
+			else
+				out << YAML::Key << "Material" << YAML::Value << 0;
+
 			out << YAML::EndMap; // CapsuleColliderComponent
 		}
 
@@ -449,10 +473,15 @@ namespace Hazel {
 			auto& meshColliderComponent = entity.GetComponent<MeshColliderComponent>();
 
 			if (meshColliderComponent.OverrideMesh)
-				out << YAML::Key << "AssetPath" << YAML::Value << meshColliderComponent.CollisionMesh->GetFilePath();
+				out << YAML::Key << "AssetID" << YAML::Value << meshColliderComponent.CollisionMesh->Handle;
 			out << YAML::Key << "IsConvex" << YAML::Value << meshColliderComponent.IsConvex;
 			out << YAML::Key << "IsTrigger" << YAML::Value << meshColliderComponent.IsTrigger;
 			out << YAML::Key << "OverrideMesh" << YAML::Value << meshColliderComponent.OverrideMesh;
+
+			if (meshColliderComponent.Material)
+				out << YAML::Key << "Material" << YAML::Value << meshColliderComponent.Material->Handle;
+			else
+				out << YAML::Key << "Material" << YAML::Value << 0;
 
 			out << YAML::EndMap; // MeshColliderComponent
 		}
@@ -465,7 +494,7 @@ namespace Hazel {
 		out << YAML::Key << "Environment";
 		out << YAML::Value;
 		out << YAML::BeginMap; // Environment
-		out << YAML::Key << "AssetPath" << YAML::Value << scene->GetEnvironment().FilePath;
+		out << YAML::Key << "AssetHandle" << YAML::Value << scene->GetEnvironment()->Handle;
 		const auto& light = scene->GetLight();
 		out << YAML::Key << "Light" << YAML::Value;
 		out << YAML::BeginMap; // Light
@@ -476,21 +505,15 @@ namespace Hazel {
 		out << YAML::EndMap; // Environment
 	}
 
-	static bool CheckPath(const std::string& path)
-	{
-		FILE* f = fopen(path.c_str(), "rb");
-		if (f)
-			fclose(f);
-		return f != nullptr;
-	}
-
 	void SceneSerializer::Serialize(const std::string& filepath)
 	{
 		YAML::Emitter out;
 		out << YAML::BeginMap;
 		out << YAML::Key << "Scene";
 		out << YAML::Value << "Scene Name";
-		SerializeEnvironment(out, m_Scene);
+
+		if (m_Scene->GetEnvironment())
+			SerializeEnvironment(out, m_Scene);
 
 		out << YAML::Key << "Entities";
 		out << YAML::Value << YAML::BeginSeq;
@@ -544,6 +567,7 @@ namespace Hazel {
 	bool SceneSerializer::Deserialize(const std::string& filepath)
 	{
 		std::ifstream stream(filepath);
+		HZ_CORE_ASSERT(stream);
 		std::stringstream strStream;
 		strStream << stream.rdbuf();
 
@@ -553,24 +577,6 @@ namespace Hazel {
 
 		std::string sceneName = data["Scene"].as<std::string>();
 		HZ_CORE_INFO("Deserializing scene '{0}'", sceneName);
-
-		auto environment = data["Environment"];
-		if (environment)
-		{
-			std::string envPath = environment["AssetPath"].as<std::string>();
-			//m_Scene->SetEnvironment(Environment::Load(envPath));
-
-			auto lightNode = environment["Light"];
-			if (lightNode)
-			{
-				auto& light = m_Scene->GetLight();
-				light.Direction = lightNode["Direction"].as<glm::vec3>();
-				light.Radiance = lightNode["Radiance"].as<glm::vec3>();
-				light.Multiplier = lightNode["Multiplier"].as<float>();
-			}
-		}
-
-		std::vector<std::string> missingPaths;
 
 		auto entities = data["Entities"];
 		if (entities)
@@ -588,13 +594,38 @@ namespace Hazel {
 
 				Entity deserializedEntity = m_Scene->CreateEntityWithID(uuid, name);
 
+				auto& relationshipComponent = deserializedEntity.GetComponent<RelationshipComponent>();
+				uint64_t parentHandle = entity["Parent"] ? entity["Parent"].as<uint64_t>() : 0;
+				relationshipComponent.ParentHandle = parentHandle;
+
+				auto children = entity["Children"];
+				if (children)
+				{
+					for (auto child : children)
+					{
+						uint64_t childHandle = child["Handle"].as<uint64_t>();
+						relationshipComponent.Children.push_back(childHandle);
+					}
+				}
+
 				auto transformComponent = entity["TransformComponent"];
 				if (transformComponent)
 				{
 					// Entities always have transforms
 					auto& transform = deserializedEntity.GetComponent<TransformComponent>();
 					transform.Translation = transformComponent["Position"].as<glm::vec3>();
-					transform.Rotation = transformComponent["Rotation"].as<glm::vec3>();
+					auto& rotationNode = transformComponent["Rotation"];
+					// Rotations used to be stored as quaternions
+					if (rotationNode.size() == 4)
+					{
+						glm::quat rotation = transformComponent["Rotation"].as<glm::quat>();
+						transform.Rotation = glm::eulerAngles(rotation);
+					}
+					else
+					{
+						HZ_CORE_ASSERT(rotationNode.size() == 3);
+						transform.Rotation = transformComponent["Rotation"].as<glm::vec3>();
+					}
 					transform.Scale = transformComponent["Scale"].as<glm::vec3>();
 
 					HZ_CORE_INFO("  Entity Transform:");
@@ -619,13 +650,14 @@ namespace Hazel {
 							for (auto field : storedFields)
 							{
 								std::string name = field["Name"].as<std::string>();
+								std::string typeName = field["TypeName"] ? field["TypeName"].as<std::string>() : "";
 								FieldType type = (FieldType)field["Type"].as<uint32_t>();
 								EntityInstanceData& data = ScriptEngine::GetEntityInstanceData(m_Scene->GetUUID(), uuid);
 								auto& moduleFieldMap = data.ModuleFieldMap;
 								auto& publicFields = moduleFieldMap[moduleName];
 								if (publicFields.find(name) == publicFields.end())
 								{
-									PublicField pf = { name, type };
+									PublicField pf = { name, typeName, type };
 									publicFields.emplace(name, std::move(pf));
 								}
 								auto dataNode = field["Data"];
@@ -675,21 +707,29 @@ namespace Hazel {
 				auto meshComponent = entity["MeshComponent"];
 				if (meshComponent)
 				{
-					std::string meshPath = meshComponent["AssetPath"].as<std::string>();
-					
-					// TEMP (because script creates mesh component...)
-					if (!deserializedEntity.HasComponent<MeshComponent>())
+					auto& component = deserializedEntity.AddComponent<MeshComponent>();
+
+					AssetHandle assetHandle = 0;
+					if (meshComponent["AssetPath"])
+						assetHandle = AssetManager::GetAssetHandleFromFilePath(meshComponent["AssetPath"].as<std::string>());
+					else
+						assetHandle = meshComponent["AssetID"].as<uint64_t>();
+
+					if (AssetManager::IsAssetHandleValid(assetHandle))
 					{
-						Ref<Mesh> mesh;
-						if (!CheckPath(meshPath))
-							missingPaths.emplace_back(meshPath);
-						else
-							mesh = Ref<Mesh>::Create(meshPath);
-
-						deserializedEntity.AddComponent<MeshComponent>(mesh);
+						component.Mesh = AssetManager::GetAsset<Mesh>(assetHandle);
 					}
+					else
+					{
+						component.Mesh = Ref<Asset>::Create().As<Mesh>();
+						component.Mesh->Type = AssetType::Missing;
 
-					HZ_CORE_INFO("  Mesh Asset Path: {0}", meshPath);
+						std::string filepath = meshComponent["AssetPath"] ? meshComponent["AssetPath"].as<std::string>() : "";
+						if (filepath.empty())
+							HZ_CORE_ERROR("Tried to load non-existent mesh in Entity: {0}", deserializedEntity.GetUUID());
+						else
+							HZ_CORE_ERROR("Tried to load invalid mesh '{0}' in Entity {1}", filepath, deserializedEntity.GetUUID());
+					}
 				}
 
 				auto cameraComponent = entity["CameraComponent"];
@@ -732,18 +772,26 @@ namespace Hazel {
 				if (skyLightComponent)
 				{
 					auto& component = deserializedEntity.AddComponent<SkyLightComponent>();
-					std::string env = skyLightComponent["EnvironmentAssetPath"].as<std::string>();
-					if (!env.empty())
+
+					AssetHandle assetHandle = 0;
+					if (skyLightComponent["EnvironmentAssetPath"])
+						assetHandle = AssetManager::GetAssetHandleFromFilePath(skyLightComponent["EnvironmentAssetPath"].as<std::string>());
+					else
+						assetHandle = skyLightComponent["EnvironmentMap"].as<uint64_t>();
+
+					if (AssetManager::IsAssetHandleValid(assetHandle))
 					{
-						if (!CheckPath(env))
-						{
-							missingPaths.emplace_back(env);
-						}
-						else
-						{
-							component.SceneEnvironment = Environment::Load(env);
-						}
+						component.SceneEnvironment = AssetManager::GetAsset<Environment>(assetHandle);
 					}
+					else
+					{
+						std::string filepath = meshComponent["EnvironmentAssetPath"] ? meshComponent["EnvironmentAssetPath"].as<std::string>() : "";
+						if (filepath.empty())
+							HZ_CORE_ERROR("Tried to load non-existent environment map in Entity: {0}", deserializedEntity.GetUUID());
+						else
+							HZ_CORE_ERROR("Tried to load invalid environment map '{0}' in Entity {1}", filepath, deserializedEntity.GetUUID());
+					}
+
 					component.Intensity = skyLightComponent["Intensity"].as<float>();
 					component.Angle = skyLightComponent["Angle"].as<float>();
 				}
@@ -790,8 +838,8 @@ namespace Hazel {
 					auto& component = deserializedEntity.AddComponent<RigidBodyComponent>();
 					component.BodyType = (RigidBodyComponent::Type)rigidBodyComponent["BodyType"].as<int>();
 					component.Mass = rigidBodyComponent["Mass"].as<float>();
-					component.LinearDrag = rigidBodyComponent["LinearDrag"] ? rigidBodyComponent["LinearDrag"].as<float>() : 0.0F;
-					component.AngularDrag = rigidBodyComponent["AngularDrag"] ? rigidBodyComponent["AngularDrag"].as<float>() : 0.05F;
+					component.LinearDrag = rigidBodyComponent["LinearDrag"] ? rigidBodyComponent["LinearDrag"].as<float>() : 0.0f;
+					component.AngularDrag = rigidBodyComponent["AngularDrag"] ? rigidBodyComponent["AngularDrag"].as<float>() : 0.05f;
 					component.DisableGravity = rigidBodyComponent["DisableGravity"] ? rigidBodyComponent["DisableGravity"].as<bool>() : false;
 					component.IsKinematic = rigidBodyComponent["IsKinematic"] ? rigidBodyComponent["IsKinematic"].as<bool>() : false;
 					component.Layer = rigidBodyComponent["Layer"] ? rigidBodyComponent["Layer"].as<uint32_t>() : 0;
@@ -804,15 +852,6 @@ namespace Hazel {
 					component.LockRotationZ = rigidBodyComponent["Constraints"]["LockRotationZ"].as<bool>();
 				}
 
-				auto physicsMaterialComponent = entity["PhysicsMaterialComponent"];
-				if (physicsMaterialComponent)
-				{
-					auto& component = deserializedEntity.AddComponent<PhysicsMaterialComponent>();
-					component.StaticFriction = physicsMaterialComponent["StaticFriction"].as<float>();
-					component.DynamicFriction = physicsMaterialComponent["DynamicFriction"].as<float>();
-					component.Bounciness = physicsMaterialComponent["Bounciness"].as<float>();
-				}
-
 				auto boxColliderComponent = entity["BoxColliderComponent"];
 				if (boxColliderComponent)
 				{
@@ -820,6 +859,20 @@ namespace Hazel {
 					component.Offset = boxColliderComponent["Offset"].as<glm::vec3>();
 					component.Size = boxColliderComponent["Size"].as<glm::vec3>();
 					component.IsTrigger = boxColliderComponent["IsTrigger"] ? boxColliderComponent["IsTrigger"].as<bool>() : false;
+					
+					auto material = boxColliderComponent["Material"];
+					if (material)
+					{
+						if (AssetManager::IsAssetHandleValid(material.as<uint64_t>()))
+						{
+							component.Material = AssetManager::GetAsset<PhysicsMaterial>(material.as<uint64_t>());
+						}
+						else
+						{
+							HZ_CORE_ERROR("Tried to load invalid Physics Material in Entity {0}", deserializedEntity.GetUUID());
+						}
+					}
+
 					component.DebugMesh = MeshFactory::CreateBox(component.Size);
 				}
 
@@ -829,6 +882,20 @@ namespace Hazel {
 					auto& component = deserializedEntity.AddComponent<SphereColliderComponent>();
 					component.Radius = sphereColliderComponent["Radius"].as<float>();
 					component.IsTrigger = sphereColliderComponent["IsTrigger"] ? sphereColliderComponent["IsTrigger"].as<bool>() : false;
+				
+					auto material = sphereColliderComponent["Material"];
+					if (material)
+					{
+						if (AssetManager::IsAssetHandleValid(material.as<uint64_t>()))
+						{
+							component.Material = AssetManager::GetAsset<PhysicsMaterial>(material.as<uint64_t>());
+						}
+						else
+						{
+							HZ_CORE_ERROR("Tried to load invalid Physics Material in Entity {0}", deserializedEntity.GetUUID());
+						}
+					}
+
 					component.DebugMesh = MeshFactory::CreateSphere(component.Radius);
 				}
 
@@ -839,33 +906,45 @@ namespace Hazel {
 					component.Radius = capsuleColliderComponent["Radius"].as<float>();
 					component.Height = capsuleColliderComponent["Height"].as<float>();
 					component.IsTrigger = capsuleColliderComponent["IsTrigger"] ? capsuleColliderComponent["IsTrigger"].as<bool>() : false;
+
+					auto material = capsuleColliderComponent["Material"];
+					if (material)
+					{
+						if (AssetManager::IsAssetHandleValid(material.as<uint64_t>()))
+						{
+							component.Material = AssetManager::GetAsset<PhysicsMaterial>(material.as<uint64_t>());
+						}
+						else
+						{
+							HZ_CORE_ERROR("Tried to load invalid Physics Material in Entity {0}", deserializedEntity.GetUUID());
+						}
+					}
+
 					component.DebugMesh = MeshFactory::CreateCapsule(component.Radius, component.Height);
 				}
 
 				auto meshColliderComponent = entity["MeshColliderComponent"];
 				if (meshColliderComponent)
 				{
-					Ref<Mesh> collisionMesh = deserializedEntity.HasComponent<MeshComponent>() ? deserializedEntity.GetComponent<MeshComponent>().Mesh : nullptr;
+					auto& component = deserializedEntity.AddComponent<MeshColliderComponent>();
+					component.IsConvex = meshColliderComponent["IsConvex"] ? meshColliderComponent["IsConvex"].as<bool>() : false;
+					component.IsTrigger = meshColliderComponent["IsTrigger"] ? meshColliderComponent["IsTrigger"].as<bool>() : false;
+
+					component.CollisionMesh = deserializedEntity.HasComponent<MeshComponent>() ? deserializedEntity.GetComponent<MeshComponent>().Mesh : nullptr;
 					bool overrideMesh = meshColliderComponent["OverrideMesh"] ? meshColliderComponent["OverrideMesh"].as<bool>() : false;
 
 					if (overrideMesh)
 					{
-						std::string meshPath = meshColliderComponent["AssetPath"].as<std::string>();
-						if (!CheckPath(meshPath))
-						{
-							missingPaths.emplace_back(meshPath);
-						}
+						AssetHandle assetHandle = meshColliderComponent["AssetID"] ? meshColliderComponent["AssetID"].as<uint64_t>() : 0;
+
+						if (AssetManager::IsAssetHandleValid(assetHandle))
+							component.CollisionMesh = AssetManager::GetAsset<Mesh>(assetHandle);
 						else
-						{
-							collisionMesh = Ref<Mesh>::Create(meshPath);
-						}
+							overrideMesh = false;
 					}
 
-					if (collisionMesh)
+					if (component.CollisionMesh)
 					{
-						auto& component = deserializedEntity.AddComponent<MeshColliderComponent>(collisionMesh);
-						component.IsConvex = meshColliderComponent["IsConvex"] ? meshColliderComponent["IsConvex"].as<bool>() : false;
-						component.IsTrigger = meshColliderComponent["IsTrigger"] ? meshColliderComponent["IsTrigger"].as<bool>() : false;
 						component.OverrideMesh = overrideMesh;
 
 						if (component.IsConvex)
@@ -877,6 +956,41 @@ namespace Hazel {
 					{
 						HZ_CORE_WARN("MeshColliderComponent in use without valid mesh!");
 					}
+
+					auto material = meshColliderComponent["Material"];
+					if (material)
+					{
+						if (AssetManager::IsAssetHandleValid(material.as<uint64_t>()))
+						{
+							component.Material = AssetManager::GetAsset<PhysicsMaterial>(material.as<uint64_t>());
+						}
+						else
+						{
+							HZ_CORE_ERROR("Tried to load invalid Physics Material in Entity {0}", deserializedEntity.GetUUID());
+						}
+					}
+				}
+
+				// NOTE(Peter): Compatibility fix for older scenes
+				auto physicsMaterialComponent = entity["PhysicsMaterialComponent"];
+				if (physicsMaterialComponent)
+				{
+					Ref<PhysicsMaterial> material = Ref<PhysicsMaterial>::Create();
+					material->StaticFriction = physicsMaterialComponent["StaticFriction"].as<float>();
+					material->DynamicFriction = physicsMaterialComponent["DynamicFriction"].as<float>();
+					material->Bounciness = physicsMaterialComponent["Bounciness"].as<float>();
+
+					if (deserializedEntity.HasComponent<BoxColliderComponent>())
+						deserializedEntity.GetComponent<BoxColliderComponent>().Material = material;
+
+					if (deserializedEntity.HasComponent<SphereColliderComponent>())
+						deserializedEntity.GetComponent<SphereColliderComponent>().Material = material;
+
+					if (deserializedEntity.HasComponent<CapsuleColliderComponent>())
+						deserializedEntity.GetComponent<CapsuleColliderComponent>().Material = material;
+
+					if (deserializedEntity.HasComponent<MeshColliderComponent>())
+						deserializedEntity.GetComponent<MeshColliderComponent>().Material = material;
 				}
 			}
 		}
@@ -903,17 +1017,6 @@ namespace Hazel {
 					}
 				}
 			}
-		}
-
-		if (missingPaths.size())
-		{
-			HZ_CORE_ERROR("The following files could not be loaded:");
-			for (auto& path : missingPaths)
-			{
-				HZ_CORE_ERROR("  {0}", path);
-			}
-
-			return false;
 		}
 
 		return true;

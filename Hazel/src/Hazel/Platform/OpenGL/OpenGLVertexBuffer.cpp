@@ -56,7 +56,7 @@ namespace Hazel {
 		m_Size = size;
 		Ref<OpenGLVertexBuffer> instance = this;
 		Renderer::Submit([instance, offset]() {
-			glNamedBufferSubData(instance->m_RendererID, offset, instance->m_Size, instance->m_LocalData.Data);
+			glNamedBufferSubData(instance->m_RendererID, offset, instance->m_LocalData.Size, instance->m_LocalData.Data);
 		});
 	}
 

@@ -10,7 +10,7 @@
 // - Michał Siejak's PBR project (https://github.com/Nadrin)
 // - My implementation from years ago in the Sparky engine (https://github.com/TheCherno/Sparky)
 #type vertex
-#version 430 core
+#version 450 core
 
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec3 a_Normal;
@@ -21,9 +21,10 @@ layout(location = 4) in vec2 a_TexCoord;
 layout(location = 5) in ivec4 a_BoneIndices;
 layout(location = 6) in vec4 a_BoneWeights;
 
-uniform mat4 u_ViewProjectionMatrix;
-uniform mat4 u_ViewMatrix;
-uniform mat4 u_Transform;
+layout (std140, binding = 0) uniform Camera
+{
+	mat4 u_ViewProjectionMatrix;
+};
 
 uniform mat4 u_LightMatrixCascade0;
 uniform mat4 u_LightMatrixCascade1;
@@ -31,9 +32,13 @@ uniform mat4 u_LightMatrixCascade2;
 uniform mat4 u_LightMatrixCascade3;
 
 const int MAX_BONES = 100;
-uniform mat4 u_BoneTransforms[100];
+layout (std140, binding = 1) uniform Transform
+{
+	mat4 u_Transform;
+	mat4 u_BoneTransforms[100];
+};
 
-out VertexOutput
+struct VertexOutput
 {
 	vec3 WorldPosition;
     vec3 Normal;
@@ -41,9 +46,9 @@ out VertexOutput
 	mat3 WorldNormals;
 	mat3 WorldTransform;
 	vec3 Binormal;
-	vec4 ShadowMapCoords[4];
-	vec3 ViewPosition;
-} vs_Output;
+};
+
+layout (location = 0) out VertexOutput Output;
 
 void main()
 {
@@ -54,24 +59,17 @@ void main()
 
 	vec4 localPosition = boneTransform * vec4(a_Position, 1.0);
 
-	vs_Output.WorldPosition = vec3(u_Transform * boneTransform * vec4(a_Position, 1.0));
-    vs_Output.Normal = mat3(u_Transform) * mat3(boneTransform) * a_Normal;
-	vs_Output.TexCoord = vec2(a_TexCoord.x, 1.0 - a_TexCoord.y);
-	vs_Output.WorldNormals = mat3(u_Transform) * mat3(a_Tangent, a_Binormal, a_Normal);
-	vs_Output.WorldTransform = mat3(u_Transform);
-	vs_Output.Binormal = a_Binormal;
+	Output.WorldPosition = vec3(u_Transform * boneTransform * vec4(a_Position, 1.0));
+    Output.Normal = mat3(u_Transform) * mat3(boneTransform) * a_Normal;
+	Output.TexCoord = vec2(a_TexCoord.x, 1.0 - a_TexCoord.y);
+	Output.WorldNormals = mat3(u_Transform) * mat3(a_Tangent, a_Binormal, a_Normal);
+	Output.Binormal = mat3(boneTransform) * a_Binormal;
 
-	vs_Output.ShadowMapCoords[0] = u_LightMatrixCascade0 * vec4(vs_Output.WorldPosition, 1.0);
-	vs_Output.ShadowMapCoords[1] = u_LightMatrixCascade1 * vec4(vs_Output.WorldPosition, 1.0);
-	vs_Output.ShadowMapCoords[2] = u_LightMatrixCascade2 * vec4(vs_Output.WorldPosition, 1.0);
-	vs_Output.ShadowMapCoords[3] = u_LightMatrixCascade3 * vec4(vs_Output.WorldPosition, 1.0);
-	vs_Output.ViewPosition = vec3(u_ViewMatrix * vec4(vs_Output.WorldPosition, 1.0));
-	
 	gl_Position = u_ViewProjectionMatrix * u_Transform * localPosition;
 }
 
 #type fragment
-#version 430 core
+#version 450 core
 
 const float PI = 3.141592;
 const float Epsilon = 0.00001;
@@ -88,7 +86,7 @@ struct DirectionalLight
 	float Multiplier;
 };
 
-in VertexOutput
+struct VertexOutput
 {
 	vec3 WorldPosition;
     vec3 Normal;
@@ -96,59 +94,47 @@ in VertexOutput
 	mat3 WorldNormals;
 	mat3 WorldTransform;
 	vec3 Binormal;
-	vec4 ShadowMapCoords[4];
-	vec3 ViewPosition;
-} vs_Input;
+};
+
+layout (location = 0) in VertexOutput Input;
 
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 o_BloomColor;
 
-uniform DirectionalLight u_DirectionalLights;
-uniform vec3 u_CameraPosition;
+layout (std140, binding = 2) uniform Environment
+{
+	Light lights;
+	vec3 u_CameraPosition;
+};
 
 // PBR texture inputs
-uniform sampler2D u_AlbedoTexture;
-uniform sampler2D u_NormalTexture;
-uniform sampler2D u_MetalnessTexture;
-uniform sampler2D u_RoughnessTexture;
+layout (binding = 0) uniform sampler2D u_AlbedoTexture;
+layout (binding = 1) uniform sampler2D u_NormalTexture;
+layout (binding = 2) uniform sampler2D u_MetalnessTexture;
+layout (binding = 3) uniform sampler2D u_RoughnessTexture;
 
 // Environment maps
-uniform samplerCube u_EnvRadianceTex;
-uniform samplerCube u_EnvIrradianceTex;
+layout (binding = 4) uniform samplerCube u_EnvRadianceTex;
+layout (binding = 5) uniform samplerCube u_EnvIrradianceTex;
 
 // BRDF LUT
-uniform sampler2D u_BRDFLUTTexture;
+layout (binding = 6) uniform sampler2D u_BRDFLUTTexture;
 
-// PCSS
-uniform sampler2D u_ShadowMapTexture[4];
-uniform mat4 u_LightView;
-uniform bool u_ShowCascades;
-uniform bool u_SoftShadows;
-uniform float u_LightSize;
-uniform float u_MaxShadowDistance;
-uniform float u_ShadowFade;
-uniform bool u_CascadeFading;
-uniform float u_CascadeTransitionFade;
+layout (std140, binding = 3) uniform Material
+{
+	vec3 u_AlbedoColor;
+	float u_Metalness;
+	float u_Roughness;
 
-uniform vec4 u_CascadeSplits;
+	float u_EnvMapRotation;
 
-uniform float u_IBLContribution;
-
-uniform float u_BloomThreshold;
-
-////////////////////////////////////////
-
-uniform vec3 u_AlbedoColor;
-uniform float u_Metalness;
-uniform float u_Roughness;
-
-uniform float u_EnvMapRotation;
-
-// Toggles
-uniform float u_AlbedoTexToggle;
-uniform float u_NormalTexToggle;
-uniform float u_MetalnessTexToggle;
-uniform float u_RoughnessTexToggle;
+	// Toggles
+	float u_RadiancePrefilter;
+	float u_AlbedoTexToggle;
+	float u_NormalTexToggle;
+	float u_MetalnessTexToggle;
+	float u_RoughnessTexToggle;
+};
 
 struct PBRParameters
 {
@@ -515,20 +501,20 @@ float PCSS_DirectionalLight(sampler2D shadowMap, vec3 shadowCoords, float uvLigh
 void main()
 {
 	// Standard PBR inputs
-	m_Params.Albedo = u_AlbedoTexToggle > 0.5 ? texture(u_AlbedoTexture, vs_Input.TexCoord).rgb : u_AlbedoColor; 
-	m_Params.Metalness = u_MetalnessTexToggle > 0.5 ? texture(u_MetalnessTexture, vs_Input.TexCoord).r : u_Metalness;
-	m_Params.Roughness = u_RoughnessTexToggle > 0.5 ?  texture(u_RoughnessTexture, vs_Input.TexCoord).r : u_Roughness;
+	m_Params.Albedo = u_AlbedoTexToggle > 0.5 ? texture(u_AlbedoTexture, Input.TexCoord).rgb : u_AlbedoColor; 
+	m_Params.Metalness = u_MetalnessTexToggle > 0.5 ? texture(u_MetalnessTexture, Input.TexCoord).r : u_Metalness;
+	m_Params.Roughness = u_RoughnessTexToggle > 0.5 ?  texture(u_RoughnessTexture, Input.TexCoord).r : u_Roughness;
     m_Params.Roughness = max(m_Params.Roughness, 0.05); // Minimum roughness of 0.05 to keep specular highlight
 
 	// Normals (either from vertex or map)
-	m_Params.Normal = normalize(vs_Input.Normal);
+	m_Params.Normal = normalize(Input.Normal);
 	if (u_NormalTexToggle > 0.5)
 	{
-		m_Params.Normal = normalize(2.0 * texture(u_NormalTexture, vs_Input.TexCoord).rgb - 1.0);
-		m_Params.Normal = normalize(vs_Input.WorldNormals * m_Params.Normal);
+		m_Params.Normal = normalize(2.0 * texture(u_NormalTexture, Input.TexCoord).rgb - 1.0);
+		m_Params.Normal = normalize(Input.WorldNormals * m_Params.Normal);
 	}
 
-	m_Params.View = normalize(u_CameraPosition - vs_Input.WorldPosition);
+	m_Params.View = normalize(u_CameraPosition - Input.WorldPosition);
 	m_Params.NdotV = max(dot(m_Params.Normal, m_Params.View), 0.0);
 		
 	// Specular reflection vector

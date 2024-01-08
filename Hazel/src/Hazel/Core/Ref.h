@@ -122,10 +122,34 @@ namespace Hazel {
 			m_Instance = instance;
 		}
 
+		template<typename T2>
+		Ref<T2> As() const
+		{
+			return Ref<T2>(*this);
+		}
+
 		template<typename... Args>
 		static Ref<T> Create(Args&&... args)
 		{
 			return Ref<T>(new T(std::forward<Args>(args)...));
+		}
+
+		bool operator==(const Ref<T>& other) const
+		{
+			return m_Instance == other.m_Instance;
+		}
+
+		bool operator!=(const Ref<T>& other) const
+		{
+			return !(*this == other);
+		}
+
+		bool EqualsObject(const Ref<T>& other)
+		{
+			if (!m_Instance || !other.m_Instance)
+				return false;
+			
+			return *m_Instance == *other.m_Instance;
 		}
 	private:
 		void IncRef() const

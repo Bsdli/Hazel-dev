@@ -1,20 +1,23 @@
 #type compute
 #version 450 core
-// Physically Based Rendering
-// Copyright (c) 2017-2018 Michał Siejak
 
 // Computes diffuse irradiance cubemap convolution for image-based lighting.
 // Uses quasi Monte Carlo sampling with Hammersley sequence.
+
+layout(binding = 0, rgba32f) restrict writeonly uniform imageCube o_IrradianceMap;
+layout(binding = 1) uniform samplerCube u_RadianceMap;
 
 const float PI = 3.141592;
 const float TwoPI = 2 * PI;
 const float Epsilon = 0.00001;
 
-const uint NumSamples = 64 * 1024;
-const float InvNumSamples = 1.0 / float(NumSamples);
+uint NumSamples;
+float InvNumSamples;
 
-layout(binding=0) uniform samplerCube inputTexture;
-layout(binding=0, rgba16f) restrict writeonly uniform imageCube outputTexture;
+layout(push_constant) uniform Uniforms
+{
+	uint Samples;
+} u_Uniforms;
 
 // Compute Van der Corput radical inverse
 // See: http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
@@ -46,7 +49,7 @@ vec3 sampleHemisphere(float u1, float u2)
 
 vec3 GetCubeMapTexCoord()
 {
-    vec2 st = gl_GlobalInvocationID.xy / vec2(imageSize(outputTexture));
+    vec2 st = gl_GlobalInvocationID.xy / vec2(imageSize(o_IrradianceMap));
     vec2 uv = 2.0 * vec2(st.x, 1.0 - st.y) - vec2(1.0);
 
     vec3 ret;
@@ -79,6 +82,9 @@ vec3 tangentToWorld(const vec3 v, const vec3 N, const vec3 S, const vec3 T)
 layout(local_size_x=32, local_size_y=32, local_size_z=1) in;
 void main(void)
 {
+	NumSamples = 64 * u_Uniforms.Samples;
+	InvNumSamples = 1.0 / float(NumSamples);
+
 	vec3 N = GetCubeMapTexCoord();
 	
 	vec3 S, T;
@@ -95,9 +101,9 @@ void main(void)
 		float cosTheta = max(0.0, dot(Li, N));
 
 		// PIs here cancel out because of division by pdf.
-		irradiance += 2.0 * textureLod(inputTexture, Li, 0).rgb * cosTheta;
+		irradiance += 2.0 * textureLod(u_RadianceMap, Li, 0).rgb * cosTheta;
 	}
 	irradiance /= vec3(NumSamples);
 
-	imageStore(outputTexture, ivec3(gl_GlobalInvocationID), vec4(irradiance, 1.0));
+	imageStore(o_IrradianceMap, ivec3(gl_GlobalInvocationID), vec4(irradiance, 1.0));
 }

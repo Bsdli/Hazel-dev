@@ -107,7 +107,7 @@ namespace Hazel { namespace Script {
 					&sphereCollider.Radius
 				};
 
-				MonoObject* obj = ScriptEngine::Construct("Hazel.SphereCollider:.ctor(ulong,bool,float)", true, data);
+				MonoObject* obj = ScriptEngine::Construct("Hazel.SphereCollider:.ctor(ulong,bool,single)", true, data);
 				mono_array_set(array, MonoObject*, arrayIndex++, obj);
 			}
 
@@ -122,7 +122,7 @@ namespace Hazel { namespace Script {
 					&capsuleCollider.Height
 				};
 
-				MonoObject* obj = ScriptEngine::Construct("Hazel.CapsuleCollider:.ctor(ulong,bool,float,float)", true, data);
+				MonoObject* obj = ScriptEngine::Construct("Hazel.CapsuleCollider:.ctor(ulong,bool,single,single)", true, data);
 				mono_array_set(array, MonoObject*, arrayIndex++, obj);
 			}
 
@@ -286,7 +286,7 @@ namespace Hazel { namespace Script {
 		return 0;
 	}
 
-	void Hazel_TransformComponent_GetTransform(uint64_t entityID, ScriptTransform* outTransform)
+	void Hazel_TransformComponent_GetTransform(uint64_t entityID, TransformComponent* outTransform)
 	{
 		Ref<Scene> scene = ScriptEngine::GetCurrentSceneContext();
 		HZ_CORE_ASSERT(scene, "No active scene!");
@@ -294,20 +294,10 @@ namespace Hazel { namespace Script {
 		HZ_CORE_ASSERT(entityMap.find(entityID) != entityMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
 
 		Entity entity = entityMap.at(entityID);
-		TransformComponent& transform = entity.GetComponent<TransformComponent>();
-
-		glm::quat rotation = glm::quat(transform.Rotation);
-		glm::vec3 right = glm::normalize(glm::rotate(rotation, glm::vec3(1.0F, 0.0F, 0.0F)));
-		glm::vec3 up = glm::normalize(glm::rotate(rotation, glm::vec3(0.0F, 1.0F, 0.0F)));
-		glm::vec3 forward = glm::normalize(glm::rotate(rotation, glm::vec3(0.0F, 0.0F, -1.0F)));
-
-		*outTransform = {
-			transform.Translation, glm::degrees(transform.Rotation), transform.Scale,
-			up, right, forward
-		};
+		*outTransform = entity.GetComponent<TransformComponent>();
 	}
 
-	void Hazel_TransformComponent_SetTransform(uint64_t entityID, ScriptTransform* inTransform)
+	void Hazel_TransformComponent_SetTransform(uint64_t entityID, TransformComponent* inTransform)
 	{
 		Ref<Scene> scene = ScriptEngine::GetCurrentSceneContext();
 		HZ_CORE_ASSERT(scene, "No active scene!");
@@ -315,10 +305,73 @@ namespace Hazel { namespace Script {
 		HZ_CORE_ASSERT(entityMap.find(entityID) != entityMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
 
 		Entity entity = entityMap.at(entityID);
-		TransformComponent& transform = entity.GetComponent<TransformComponent>();
-		transform.Translation = inTransform->Translation;
-		transform.Rotation = glm::radians(inTransform->Rotation);
-		transform.Scale = inTransform->Scale;
+		entity.GetComponent<TransformComponent>() = *inTransform;
+	}
+
+	void Hazel_TransformComponent_GetTranslation(uint64_t entityID, glm::vec3* outTranslation)
+	{
+		Ref<Scene> scene = ScriptEngine::GetCurrentSceneContext();
+		HZ_CORE_ASSERT(scene, "No active scene!");
+		const auto& entityMap = scene->GetEntityMap();
+		HZ_CORE_ASSERT(entityMap.find(entityID) != entityMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
+
+		Entity entity = entityMap.at(entityID);
+		*outTranslation = entity.GetComponent<TransformComponent>().Translation;
+	}
+
+	void Hazel_TransformComponent_SetTranslation(uint64_t entityID, glm::vec3* inTranslation)
+	{
+		Ref<Scene> scene = ScriptEngine::GetCurrentSceneContext();
+		HZ_CORE_ASSERT(scene, "No active scene!");
+		const auto& entityMap = scene->GetEntityMap();
+		HZ_CORE_ASSERT(entityMap.find(entityID) != entityMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
+
+		Entity entity = entityMap.at(entityID);
+		entity.GetComponent<TransformComponent>().Translation = *inTranslation;
+	}
+
+	void Hazel_TransformComponent_GetRotation(uint64_t entityID, glm::vec3* outRotation)
+	{
+		Ref<Scene> scene = ScriptEngine::GetCurrentSceneContext();
+		HZ_CORE_ASSERT(scene, "No active scene!");
+		const auto& entityMap = scene->GetEntityMap();
+		HZ_CORE_ASSERT(entityMap.find(entityID) != entityMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
+
+		Entity entity = entityMap.at(entityID);
+		*outRotation = entity.GetComponent<TransformComponent>().Rotation;
+	}
+
+	void Hazel_TransformComponent_SetRotation(uint64_t entityID, glm::vec3* inRotation)
+	{
+		Ref<Scene> scene = ScriptEngine::GetCurrentSceneContext();
+		HZ_CORE_ASSERT(scene, "No active scene!");
+		const auto& entityMap = scene->GetEntityMap();
+		HZ_CORE_ASSERT(entityMap.find(entityID) != entityMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
+
+		Entity entity = entityMap.at(entityID);
+		entity.GetComponent<TransformComponent>().Rotation = *inRotation;
+	}
+
+	void Hazel_TransformComponent_GetScale(uint64_t entityID, glm::vec3* outScale)
+	{
+		Ref<Scene> scene = ScriptEngine::GetCurrentSceneContext();
+		HZ_CORE_ASSERT(scene, "No active scene!");
+		const auto& entityMap = scene->GetEntityMap();
+		HZ_CORE_ASSERT(entityMap.find(entityID) != entityMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
+
+		Entity entity = entityMap.at(entityID);
+		*outScale = entity.GetComponent<TransformComponent>().Scale;
+	}
+
+	void Hazel_TransformComponent_SetScale(uint64_t entityID, glm::vec3* inScale)
+	{
+		Ref<Scene> scene = ScriptEngine::GetCurrentSceneContext();
+		HZ_CORE_ASSERT(scene, "No active scene!");
+		const auto& entityMap = scene->GetEntityMap();
+		HZ_CORE_ASSERT(entityMap.find(entityID) != entityMap.end(), "Invalid entity ID or entity doesn't exist in scene!");
+
+		Entity entity = entityMap.at(entityID);
+		entity.GetComponent<TransformComponent>().Scale = *inScale;
 	}
 
 	void* Hazel_MeshComponent_GetMesh(uint64_t entityID)
@@ -575,16 +628,17 @@ namespace Hazel { namespace Script {
 	Ref<Material>* Hazel_Mesh_GetMaterial(Ref<Mesh>* inMesh)
 	{
 		Ref<Mesh>& mesh = *(Ref<Mesh>*)inMesh;
-		return new Ref<Material>(mesh->GetMaterial());
+		const auto& materials = mesh->GetMaterials();
+		return new Ref<Material>(materials[0]);
 	}
 
-	Ref<MaterialInstance>* Hazel_Mesh_GetMaterialByIndex(Ref<Mesh>* inMesh, int index)
+	Ref<Material>* Hazel_Mesh_GetMaterialByIndex(Ref<Mesh>* inMesh, int index)
 	{
 		Ref<Mesh>& mesh = *(Ref<Mesh>*)inMesh;
 		const auto& materials = mesh->GetMaterials();
 		
 		HZ_CORE_ASSERT(index < materials.size());
-		return new Ref<MaterialInstance>(materials[index]);
+		return new Ref<Material>(materials[index]);
 	}
 
 	int Hazel_Mesh_GetMaterialCount(Ref<Mesh>* inMesh)
@@ -596,7 +650,7 @@ namespace Hazel { namespace Script {
 
 	void* Hazel_Texture2D_Constructor(uint32_t width, uint32_t height)
 	{
-		auto result = Texture2D::Create(TextureFormat::RGBA, width, height);
+		auto result = Texture2D::Create(ImageFormat::RGBA, width, height);
 		return new Ref<Texture2D>(result);
 	}
 
@@ -646,32 +700,32 @@ namespace Hazel { namespace Script {
 		instance->Set(mono_string_to_utf8(uniform), *texture);
 	}
 
-	void Hazel_MaterialInstance_Destructor(Ref<MaterialInstance>* _this)
+	void Hazel_MaterialInstance_Destructor(Ref<Material>* _this)
 	{
 		delete _this;
 	}
 
-	void Hazel_MaterialInstance_SetFloat(Ref<MaterialInstance>* _this, MonoString* uniform, float value)
+	void Hazel_MaterialInstance_SetFloat(Ref<Material>* _this, MonoString* uniform, float value)
 	{
-		Ref<MaterialInstance>& instance = *(Ref<MaterialInstance>*)_this;
+		Ref<Material>& instance = *(Ref<Material>*)_this;
 		instance->Set(mono_string_to_utf8(uniform), value);
 	}
 
-	void Hazel_MaterialInstance_SetVector3(Ref<MaterialInstance>* _this, MonoString* uniform, glm::vec3* value)
+	void Hazel_MaterialInstance_SetVector3(Ref<Material>* _this, MonoString* uniform, glm::vec3* value)
 	{
-		Ref<MaterialInstance>& instance = *(Ref<MaterialInstance>*)_this;
+		Ref<Material>& instance = *(Ref<Material>*)_this;
 		instance->Set(mono_string_to_utf8(uniform), *value);
 	}
 
-	void Hazel_MaterialInstance_SetVector4(Ref<MaterialInstance>* _this, MonoString* uniform, glm::vec4* value)
+	void Hazel_MaterialInstance_SetVector4(Ref<Material>* _this, MonoString* uniform, glm::vec4* value)
 	{
-		Ref<MaterialInstance>& instance = *(Ref<MaterialInstance>*)_this;
+		Ref<Material>& instance = *(Ref<Material>*)_this;
 		instance->Set(mono_string_to_utf8(uniform), *value);
 	}
 
-	void Hazel_MaterialInstance_SetTexture(Ref<MaterialInstance>* _this, MonoString* uniform, Ref<Texture2D>* texture)
+	void Hazel_MaterialInstance_SetTexture(Ref<Material>* _this, MonoString* uniform, Ref<Texture2D>* texture)
 	{
-		Ref<MaterialInstance>& instance = *(Ref<MaterialInstance>*)_this;
+		Ref<Material>& instance = *(Ref<Material>*)_this;
 		instance->Set(mono_string_to_utf8(uniform), *texture);
 	}
 

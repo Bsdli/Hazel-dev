@@ -1,57 +1,52 @@
 #pragma once
 
-namespace Hazel {
+#include "Hazel/Renderer/Mesh.h"
+#include "Hazel/Scene/Scene.h"
 
-	using RendererID = uint32_t;
+#include "RendererTypes.h"
+#include "RendererCapabilities.h"
+
+namespace Hazel {
 
 	enum class RendererAPIType
 	{
 		None,
+		Vulkan,
 		OpenGL
 	};
 
-	// TODO: move into separate header
 	enum class PrimitiveType
 	{
 		None = 0, Triangles, Lines
 	};
 
-	struct RenderAPICapabilities
-	{
-		std::string Vendor;
-		std::string Renderer;
-		std::string Version;
-
-		int MaxSamples = 0;
-		float MaxAnisotropy = 0.0f;
-		int MaxTextureUnits = 0;
-	};
-
 	class RendererAPI
 	{
-	private:
-
 	public:
-		static void Init();
-		static void Shutdown();
+		virtual void Init() = 0;
+		virtual void Shutdown() = 0;
 
-		static void Clear(float r, float g, float b, float a);
-		static void SetClearColor(float r, float g, float b, float a);
+		virtual void BeginFrame() = 0;
+		virtual void EndFrame() = 0;
 
-		static void DrawIndexed(uint32_t count, PrimitiveType type, bool depthTest = true);
-		static void SetLineThickness(float thickness);
+		virtual void BeginRenderPass(const Ref<RenderPass>& renderPass) = 0;
+		virtual void EndRenderPass() = 0;
+		virtual void SubmitFullscreenQuad(Ref<Pipeline> pipeline, Ref<Material> material) = 0;
 
-		static RenderAPICapabilities& GetCapabilities()
-		{
-			static RenderAPICapabilities capabilities;
-			return capabilities;
-		}
+		virtual void SetSceneEnvironment(Ref<Environment> environment, Ref<Image2D> shadow) = 0;
+		virtual std::pair<Ref<TextureCube>, Ref<TextureCube>> CreateEnvironmentMap(const std::string& filepath) = 0;
+		virtual Ref<TextureCube> CreatePreethamSky(float turbidity, float azimuth, float inclination) = 0;
+
+		virtual void RenderMesh(Ref<Pipeline> pipeline, Ref<Mesh> mesh, const glm::mat4& transform) = 0;
+		virtual void RenderMeshWithoutMaterial(Ref<Pipeline> pipeline, Ref<Mesh> mesh, const glm::mat4& transform) = 0;
+		virtual void RenderQuad(Ref<Pipeline> pipeline, Ref<Material> material, const glm::mat4& transform) = 0;
+
+		virtual RendererCapabilities& GetCapabilities() = 0;
 
 		static RendererAPIType Current() { return s_CurrentRendererAPI; }
+		static void SetAPI(RendererAPIType api);
 	private:
-		static void LoadRequiredAssets();
-	private:
-		static RendererAPIType s_CurrentRendererAPI;
+		inline static RendererAPIType s_CurrentRendererAPI = RendererAPIType::Vulkan;
 	};
 
 }

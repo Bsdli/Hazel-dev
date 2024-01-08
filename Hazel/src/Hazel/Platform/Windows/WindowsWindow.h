@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Hazel/Core/Window.h"
+#include "Hazel/Renderer/RendererContext.h"
 
 #include <GLFW/glfw3.h>
 
@@ -12,7 +13,8 @@ namespace Hazel {
 		WindowsWindow(const WindowProps& props);
 		virtual ~WindowsWindow();
 
-		void OnUpdate() override;
+		virtual void ProcessEvents() override;
+		virtual void SwapBuffers() override;
 
 		inline unsigned int GetWidth() const override { return m_Data.Width; }
 		inline unsigned int GetHeight() const override { return m_Data.Height; }
@@ -31,6 +33,8 @@ namespace Hazel {
 		virtual void SetTitle(const std::string& title) override;
 
 		inline void* GetNativeWindow() const { return m_Window; }
+
+		virtual Ref<RendererContext> GetRenderContext() override { return m_RendererContext; }
 	private:
 		virtual void Init(const WindowProps& props);
 		virtual void Shutdown();
@@ -49,6 +53,8 @@ namespace Hazel {
 
 		WindowData m_Data;
 		float m_LastFrameTime = 0.0f;
+
+		Ref<RendererContext> m_RendererContext;
 	};
 
 }

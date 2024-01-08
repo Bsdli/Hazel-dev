@@ -38,8 +38,15 @@ namespace Hazel {
 		m_ViewMatrix = glm::inverse(m_ViewMatrix);
 	}
 
-	void EditorCamera::Focus()
+	void EditorCamera::Focus(const glm::vec3& focusPoint)
 	{
+		m_FocalPoint = focusPoint;
+		if (m_Distance > m_MinFocusDistance)
+		{
+			float distance = m_Distance - m_MinFocusDistance;
+			MouseZoom(distance / ZoomSpeed());
+			UpdateCameraView();
+		}
 	}
 
 	std::pair<float, float> EditorCamera::PanSpeed() const

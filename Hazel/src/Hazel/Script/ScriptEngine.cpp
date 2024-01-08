@@ -127,17 +127,23 @@ namespace Hazel {
 
 	static void InitMono()
 	{
-		mono_set_assemblies_path("mono/lib");
-		// mono_jit_set_trace_options("--verbose");
-		auto domain = mono_jit_init("Hazel");
+		if (!s_MonoDomain)
+		{
+			mono_set_assemblies_path("mono/lib");
+			// mono_jit_set_trace_options("--verbose");
+			auto domain = mono_jit_init("Hazel");
 
-		char* name = (char*)"HazelRuntime";
-		s_MonoDomain = mono_domain_create_appdomain(name, nullptr);
+			char* name = (char*)"HazelRuntime";
+			s_MonoDomain = mono_domain_create_appdomain(name, nullptr);
+		}
 	}
 	
 	static void ShutdownMono()
 	{
-		mono_jit_cleanup(s_MonoDomain);
+		// Apparently according to https://www.mono-project.com/docs/advanced/embedding/
+		// we can't do mono_jit_init in the same process after mono_jit_cleanup...
+		// so don't do this
+		// mono_jit_cleanup(s_MonoDomain);
 	}
 
 	static MonoAssembly* LoadAssembly(const std::string& path)
@@ -300,7 +306,7 @@ namespace Hazel {
 
 	void ScriptEngine::Shutdown()
 	{
-		// shutdown mono
+		ShutdownMono();
 		s_SceneContext = nullptr;
 		s_EntityInstanceMap.clear();
 	}
@@ -540,6 +546,7 @@ namespace Hazel {
 			case MONO_TYPE_I4: return FieldType::Int;
 			case MONO_TYPE_U4: return FieldType::UnsignedInt;
 			case MONO_TYPE_STRING: return FieldType::String;
+			case MONO_TYPE_CLASS: return FieldType::ClassReference;
 			case MONO_TYPE_VALUETYPE:
 			{
 				char* name = mono_type_get_name(monoType);
@@ -622,8 +629,13 @@ namespace Hazel {
 				MonoType* fieldType = mono_field_get_type(iter);
 				FieldType hazelFieldType = GetHazelFieldType(fieldType);
 
+				if (hazelFieldType == FieldType::ClassReference)
+					continue;
+
 				// TODO: Attributes
 				MonoCustomAttrInfo* attr = mono_custom_attrs_from_field(scriptClass.Class, iter);
+
+				char* typeName = mono_type_get_name(fieldType);
 
 				if (oldFields.find(name) != oldFields.end())
 				{
@@ -631,9 +643,17 @@ namespace Hazel {
 				}
 				else
 				{
-					PublicField field = { name, hazelFieldType };
+					PublicField field = { name, typeName, hazelFieldType };
 					field.m_EntityInstance = &entityInstance;
 					field.m_MonoClassField = iter;
+
+					/*if (field.Type == FieldType::ClassReference)
+					{
+						Asset* rawAsset = new Asset();
+						Ref<Asset>* asset = new Ref<Asset>(rawAsset);
+						field.SetStoredValueRaw(asset);
+					}*/
+
 					fieldMap.emplace(name, std::move(field));
 				}
 			}
@@ -699,13 +719,14 @@ namespace Hazel {
 			case FieldType::Vec2:        return 4 * 2;
 			case FieldType::Vec3:        return 4 * 3;
 			case FieldType::Vec4:        return 4 * 4;
+			case FieldType::ClassReference: return 4;
 		}
 		HZ_CORE_ASSERT(false, "Unknown field type!");
 		return 0;
 	}
 
-	PublicField::PublicField(const std::string& name, FieldType type)
-		: Name(name), Type(type)
+	PublicField::PublicField(const std::string& name, const std::string& typeName, FieldType type)
+		: Name(name), TypeName(typeName), Type(type)
 	{
 		m_StoredValueBuffer = AllocateBuffer(type);
 	}
@@ -713,6 +734,7 @@ namespace Hazel {
 	PublicField::PublicField(PublicField&& other)
 	{
 		Name = std::move(other.Name);
+		TypeName = std::move(other.TypeName);
 		Type = other.Type;
 		m_EntityInstance = other.m_EntityInstance;
 		m_MonoClassField = other.m_MonoClassField;
@@ -731,7 +753,20 @@ namespace Hazel {
 	void PublicField::CopyStoredValueToRuntime()
 	{
 		HZ_CORE_ASSERT(m_EntityInstance->GetInstance());
-		mono_field_set_value(m_EntityInstance->GetInstance(), m_MonoClassField, m_StoredValueBuffer);
+
+		if (Type == FieldType::ClassReference)
+		{
+			// Create Managed Object
+			void* params[] = {
+				&m_StoredValueBuffer
+			};
+			MonoObject* obj = ScriptEngine::Construct(TypeName + ":.ctor(intptr)", true, params);
+			mono_field_set_value(m_EntityInstance->GetInstance(), m_MonoClassField, obj);
+		}
+		else
+		{
+			mono_field_set_value(m_EntityInstance->GetInstance(), m_MonoClassField, m_StoredValueBuffer);
+		}
 	}
 
 	bool PublicField::IsRuntimeAvailable() const
@@ -741,8 +776,46 @@ namespace Hazel {
 
 	void PublicField::SetStoredValueRaw(void* src)
 	{
-		uint32_t size = GetFieldSize(Type);
-		memcpy(m_StoredValueBuffer, src, size);
+		if (Type == FieldType::ClassReference)
+		{
+			m_StoredValueBuffer = (uint8_t*)src;
+		}
+		else
+		{
+			uint32_t size = GetFieldSize(Type);
+			memcpy(m_StoredValueBuffer, src, size);
+		}
+	}
+
+	void PublicField::SetRuntimeValueRaw(void* src)
+	{
+		HZ_CORE_ASSERT(m_EntityInstance->GetInstance());
+		mono_field_set_value(m_EntityInstance->GetInstance(), m_MonoClassField, src);
+	}
+
+	void* PublicField::GetRuntimeValueRaw()
+	{
+		HZ_CORE_ASSERT(m_EntityInstance->GetInstance());
+
+		if (Type == FieldType::ClassReference)
+		{
+			MonoObject* instance;
+			mono_field_get_value(m_EntityInstance->GetInstance(), m_MonoClassField, &instance);
+
+			if (!instance)
+				return nullptr;
+
+			MonoClassField* field = mono_class_get_field_from_name(mono_object_get_class(instance), "m_UnmanagedInstance");
+			int* value;
+			mono_field_get_value(instance, field, &value);
+			return value;
+		}
+		else
+		{
+			uint8_t* outValue;
+			mono_field_get_value(m_EntityInstance->GetInstance(), m_MonoClassField, outValue);
+			return outValue;
+		}
 	}
 
 	uint8_t* PublicField::AllocateBuffer(FieldType type)
@@ -755,8 +828,15 @@ namespace Hazel {
 
 	void PublicField::SetStoredValue_Internal(void* value) const
 	{
-		uint32_t size = GetFieldSize(Type);
-		memcpy(m_StoredValueBuffer, value, size);
+		if (Type == FieldType::ClassReference)
+		{
+			//m_StoredValueBuffer = (uint8_t*)value;
+		}
+		else
+		{
+			uint32_t size = GetFieldSize(Type);
+			memcpy(m_StoredValueBuffer, value, size);
+		}
 	}
 
 	void PublicField::GetStoredValue_Internal(void* outValue) const

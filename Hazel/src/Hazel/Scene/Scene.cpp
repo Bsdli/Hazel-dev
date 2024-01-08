@@ -12,6 +12,9 @@
 #include "Hazel/Physics/Physics.h"
 #include "Hazel/Physics/PhysicsActor.h"
 
+#include "Hazel/Math/Math.h"
+#include "Hazel/Renderer/Renderer.h"
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
@@ -35,7 +38,7 @@ namespace Hazel {
 	};
 
 	// TODO: MOVE TO PHYSICS FILE!
-	class ContactListener : public b2ContactListener
+	class ContactListener2D : public b2ContactListener
 	{
 	public:
 		virtual void BeginContact(b2Contact* contact) override
@@ -94,7 +97,7 @@ namespace Hazel {
 		}
 	};
 
-	static ContactListener s_Box2DContactListener;
+	static ContactListener2D s_Box2DContactListener;
 
 	struct Box2DWorldComponent
 	{
@@ -156,8 +159,8 @@ namespace Hazel {
 
 	void Scene::Init()
 	{
-		auto skyboxShader = Shader::Create("assets/shaders/Skybox.glsl");
-		m_SkyboxMaterial = MaterialInstance::Create(Material::Create(skyboxShader));
+		auto skyboxShader = Renderer::GetShaderLibrary()->Get("Skybox");
+		m_SkyboxMaterial = Material::Create(skyboxShader);
 		m_SkyboxMaterial->SetFlag(MaterialFlag::DepthTest, false);
 	}
 
@@ -198,6 +201,24 @@ namespace Hazel {
 			}
 		}
 
+		{
+			auto view = m_Registry.view<TransformComponent>();
+			for (auto entity : view)
+			{
+				auto& transformComponent = view.get(entity);
+				glm::mat4 transform = GetTransformRelativeToParent(Entity(entity, this));
+				glm::vec3 translation;
+				glm::vec3 rotation;
+				glm::vec3 scale;
+				Math::DecomposeTransform(transform, translation, rotation, scale);
+
+				glm::quat rotationQuat = glm::quat(rotation);
+				transformComponent.Up = glm::normalize(glm::rotate(rotationQuat, glm::vec3(0.0f, 1.0f, 0.0f)));
+				transformComponent.Right = glm::normalize(glm::rotate(rotationQuat, glm::vec3(1.0f, 0.0f, 0.0f)));
+				transformComponent.Forward = glm::normalize(glm::rotate(rotationQuat, glm::vec3(0.0f, 0.0f, -1.0f)));
+			}
+		}
+
 		Physics::Simulate(ts);
 	}
 
@@ -210,7 +231,7 @@ namespace Hazel {
 		if (!cameraEntity)
 			return;
 
-		glm::mat4 cameraViewMatrix = glm::inverse(cameraEntity.Transform().GetTransform());
+		glm::mat4 cameraViewMatrix = glm::inverse(GetTransformRelativeToParent(cameraEntity));
 		HZ_CORE_ASSERT(cameraEntity, "Scene does not contain any cameras!");
 		SceneCamera& camera = cameraEntity.GetComponent<CameraComponent>();
 		camera.SetViewportSize(m_ViewportWidth, m_ViewportHeight);
@@ -236,30 +257,32 @@ namespace Hazel {
 
 		// TODO: only one sky light at the moment!
 		{
-			m_Environment = Environment();
+			//m_Environment = Ref<Environment>::Create();
 			auto lights = m_Registry.group<SkyLightComponent>(entt::get<TransformComponent>);
 			for (auto entity : lights)
 			{
 				auto [transformComponent, skyLightComponent] = lights.get<TransformComponent, SkyLightComponent>(entity);
 				m_Environment = skyLightComponent.SceneEnvironment;
 				m_EnvironmentIntensity = skyLightComponent.Intensity;
-				SetSkybox(m_Environment.RadianceMap);
+				if (m_Environment)
+					SetSkybox(m_Environment->RadianceMap);
 			}
 		}
 
-		m_SkyboxMaterial->Set("u_TextureLod", m_SkyboxLod);
+		m_SkyboxMaterial->Set("u_Uniforms.TextureLod", m_SkyboxLod);
 
 		auto group = m_Registry.group<MeshComponent>(entt::get<TransformComponent>);
 		SceneRenderer::BeginScene(this, { camera, cameraViewMatrix });
 		for (auto entity : group)
 		{
 			auto [transformComponent, meshComponent] = group.get<TransformComponent, MeshComponent>(entity);
-			if (meshComponent.Mesh)
+			if (meshComponent.Mesh && meshComponent.Mesh->Type == AssetType::Mesh)
 			{
 				meshComponent.Mesh->OnUpdate(ts);
+				glm::mat4 transform = GetTransformRelativeToParent(Entity(entity, this));
 
 				// TODO: Should we render (logically)
-				SceneRenderer::SubmitMesh(meshComponent, transformComponent.GetTransform());
+				SceneRenderer::SubmitMesh(meshComponent, transform);
 			}
 		}
 		SceneRenderer::EndScene();
@@ -309,33 +332,44 @@ namespace Hazel {
 		}
 
 		{
-			m_Environment = Environment();
 			auto lights = m_Registry.group<SkyLightComponent>(entt::get<TransformComponent>);
+			if (lights.empty())
+				m_Environment = Ref<Environment>::Create(Renderer::GetBlackCubeTexture(), Renderer::GetBlackCubeTexture());
+
 			for (auto entity : lights)
 			{
 				auto [transformComponent, skyLightComponent] = lights.get<TransformComponent, SkyLightComponent>(entity);
+				if (!skyLightComponent.SceneEnvironment && skyLightComponent.DynamicSky)
+				{
+					Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skyLightComponent.TurbidityAzimuthInclination.x, skyLightComponent.TurbidityAzimuthInclination.y, skyLightComponent.TurbidityAzimuthInclination.z);
+					skyLightComponent.SceneEnvironment = Ref<Environment>::Create(preethamEnv, preethamEnv);
+				}
 				m_Environment = skyLightComponent.SceneEnvironment;
 				m_EnvironmentIntensity = skyLightComponent.Intensity;
-				SetSkybox(m_Environment.RadianceMap);
+				if (m_Environment)
+					SetSkybox(m_Environment->RadianceMap);
 			}
 		}
 
-		m_SkyboxMaterial->Set("u_TextureLod", m_SkyboxLod);
+		m_SkyboxMaterial->Set("u_Uniforms.TextureLod", m_SkyboxLod);
 
 		auto group = m_Registry.group<MeshComponent>(entt::get<TransformComponent>);
 		SceneRenderer::BeginScene(this, { editorCamera, editorCamera.GetViewMatrix(), 0.1f, 1000.0f, 45.0f }); // TODO: real values
 		for (auto entity : group)
 		{
-			auto& [meshComponent, transformComponent] = group.get<MeshComponent, TransformComponent>(entity);
-			if (meshComponent.Mesh)
+			auto [meshComponent, transformComponent] = group.get<MeshComponent, TransformComponent>(entity);
+			if (meshComponent.Mesh && meshComponent.Mesh->Type == AssetType::Mesh)
 			{
 				meshComponent.Mesh->OnUpdate(ts);
 
-				// TODO: Should we render (logically)
-				SceneRenderer::SubmitMesh(meshComponent, transformComponent.GetTransform());
+				// TODO(Peter): Is this any good?
+				glm::mat4 transform = GetTransformRelativeToParent(Entity{ entity, this });
 
-				/*if (m_SelectedEntity == entity)
-					SceneRenderer::SubmitSelectedMesh(meshComponent, transformComponent.GetTransform());*/
+				// TODO: Should we render (logically)
+				if (m_SelectedEntity == entity)
+					SceneRenderer::SubmitSelectedMesh(meshComponent, transform);
+				else
+					SceneRenderer::SubmitMesh(meshComponent, transform);
 			}
 		}
 
@@ -344,10 +378,11 @@ namespace Hazel {
 			for (auto entity : view)
 			{
 				Entity e = { entity, this };
+				glm::mat4 transform = GetTransformRelativeToParent(e);
 				auto& collider = e.GetComponent<BoxColliderComponent>();
 
 				if (m_SelectedEntity == entity)
-					SceneRenderer::SubmitColliderMesh(collider, e.GetComponent<TransformComponent>().GetTransform());
+					SceneRenderer::SubmitColliderMesh(collider, transform);
 			}
 		}
 
@@ -356,10 +391,11 @@ namespace Hazel {
 			for (auto entity : view)
 			{
 				Entity e = { entity, this };
+				glm::mat4 transform = GetTransformRelativeToParent(e);
 				auto& collider = e.GetComponent<SphereColliderComponent>();
 
 				if (m_SelectedEntity == entity)
-					SceneRenderer::SubmitColliderMesh(collider, e.GetComponent<TransformComponent>().GetTransform());
+					SceneRenderer::SubmitColliderMesh(collider, transform);
 			}
 		}
 
@@ -368,10 +404,11 @@ namespace Hazel {
 			for (auto entity : view)
 			{
 				Entity e = { entity, this };
+				glm::mat4 transform = GetTransformRelativeToParent(e);
 				auto& collider = e.GetComponent<CapsuleColliderComponent>();
 
 				if (m_SelectedEntity == entity)
-					SceneRenderer::SubmitColliderMesh(collider, e.GetComponent<TransformComponent>().GetTransform());
+					SceneRenderer::SubmitColliderMesh(collider, transform);
 			}
 		}
 
@@ -380,10 +417,11 @@ namespace Hazel {
 			for (auto entity : view)
 			{
 				Entity e = { entity, this };
+				glm::mat4 transform = GetTransformRelativeToParent(e);
 				auto& collider = e.GetComponent<MeshColliderComponent>();
 
 				if (m_SelectedEntity == entity)
-					SceneRenderer::SubmitColliderMesh(collider, e.GetComponent<TransformComponent>().GetTransform());
+					SceneRenderer::SubmitColliderMesh(collider, transform);
 			}
 		}
 
@@ -515,6 +553,20 @@ namespace Hazel {
 			}
 		}
 
+		// If the entity doesn't have a rigidbody but has a collider, give it a default rigidbody
+		{
+			auto view = m_Registry.view<TransformComponent>(entt::exclude<RigidBodyComponent>);
+			for (auto entity : view)
+			{
+				if (m_Registry.any<BoxColliderComponent, SphereColliderComponent, CapsuleColliderComponent, MeshColliderComponent>(entity))
+				{
+					Entity e = { entity, this };
+					if (!e.HasComponent<RigidBodyComponent>())
+						e.AddComponent<RigidBodyComponent>();
+				}
+			}
+		}
+
 		{
 			auto view = m_Registry.view<RigidBodyComponent>();
 			for (auto entity : view)
@@ -544,8 +596,8 @@ namespace Hazel {
 
 	void Scene::SetSkybox(const Ref<TextureCube>& skybox)
 	{
-		m_SkyboxTexture = skybox;
-		m_SkyboxMaterial->Set("u_Texture", skybox);
+		//m_SkyboxTexture = skybox;
+		//m_SkyboxMaterial->Set("u_Texture", skybox);
 	}
 
 	Entity Scene::GetMainCameraEntity()
@@ -570,6 +622,8 @@ namespace Hazel {
 		if (!name.empty())
 			entity.AddComponent<TagComponent>(name);
 
+		entity.AddComponent<RelationshipComponent>();
+
 		m_EntityIDMap[idComponent.ID] = entity;
 		return entity;
 	}
@@ -583,6 +637,8 @@ namespace Hazel {
 		entity.AddComponent<TransformComponent>();
 		if (!name.empty())
 			entity.AddComponent<TagComponent>(name);
+
+		entity.AddComponent<RelationshipComponent>();
 
 		HZ_CORE_ASSERT(m_EntityIDMap.find(uuid) == m_EntityIDMap.end());
 		m_EntityIDMap[uuid] = entity;
@@ -629,6 +685,7 @@ namespace Hazel {
 			newEntity = CreateEntity();
 
 		CopyComponentIfExists<TransformComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
+		CopyComponentIfExists<RelationshipComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
 		CopyComponentIfExists<MeshComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
 		CopyComponentIfExists<DirectionalLightComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
 		CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
@@ -639,7 +696,6 @@ namespace Hazel {
 		CopyComponentIfExists<BoxCollider2DComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
 		CopyComponentIfExists<CircleCollider2DComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
 		CopyComponentIfExists<RigidBodyComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
-		CopyComponentIfExists<PhysicsMaterialComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
 		CopyComponentIfExists<BoxColliderComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
 		CopyComponentIfExists<SphereColliderComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
 		CopyComponentIfExists<CapsuleColliderComponent>(newEntity.m_EntityHandle, entity.m_EntityHandle, m_Registry);
@@ -658,6 +714,30 @@ namespace Hazel {
 		}
 
 		return Entity{};
+	}
+
+	Entity Scene::FindEntityByUUID(UUID id)
+	{
+		auto view = m_Registry.view<IDComponent>();
+		for (auto entity : view)
+		{
+			auto& idComponent = m_Registry.get<IDComponent>(entity);
+			if (idComponent.ID == id)
+				return Entity(entity, this);
+		}
+
+		return Entity{};
+	}
+
+	glm::mat4 Scene::GetTransformRelativeToParent(Entity entity)
+	{
+		glm::mat4 transform(1.0F);
+
+		Entity parent = FindEntityByUUID(entity.GetParentUUID());
+		if (parent)
+			transform = GetTransformRelativeToParent(parent);
+
+		return transform * entity.Transform().GetTransform();
 	}
 
 	// Copy to runtime
@@ -683,6 +763,7 @@ namespace Hazel {
 
 		CopyComponent<TagComponent>(target->m_Registry, m_Registry, enttMap);
 		CopyComponent<TransformComponent>(target->m_Registry, m_Registry, enttMap);
+		CopyComponent<RelationshipComponent>(target->m_Registry, m_Registry, enttMap);
 		CopyComponent<MeshComponent>(target->m_Registry, m_Registry, enttMap);
 		CopyComponent<DirectionalLightComponent>(target->m_Registry, m_Registry, enttMap);
 		CopyComponent<SkyLightComponent>(target->m_Registry, m_Registry, enttMap);
@@ -693,7 +774,6 @@ namespace Hazel {
 		CopyComponent<BoxCollider2DComponent>(target->m_Registry, m_Registry, enttMap);
 		CopyComponent<CircleCollider2DComponent>(target->m_Registry, m_Registry, enttMap);
 		CopyComponent<RigidBodyComponent>(target->m_Registry, m_Registry, enttMap);
-		CopyComponent<PhysicsMaterialComponent>(target->m_Registry, m_Registry, enttMap);
 		CopyComponent<BoxColliderComponent>(target->m_Registry, m_Registry, enttMap);
 		CopyComponent<SphereColliderComponent>(target->m_Registry, m_Registry, enttMap);
 		CopyComponent<CapsuleColliderComponent>(target->m_Registry, m_Registry, enttMap);

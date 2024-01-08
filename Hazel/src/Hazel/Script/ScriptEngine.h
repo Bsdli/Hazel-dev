@@ -18,7 +18,7 @@ namespace Hazel {
 
 	enum class FieldType
 	{
-		None = 0, Float, Int, UnsignedInt, String, Vec2, Vec3, Vec4
+		None = 0, Float, Int, UnsignedInt, String, Vec2, Vec3, Vec4, ClassReference
 	};
 
 	const char* FieldTypeToString(FieldType type);
@@ -38,9 +38,10 @@ namespace Hazel {
 	struct PublicField
 	{
 		std::string Name;
+		std::string TypeName;
 		FieldType Type;
 
-		PublicField(const std::string& name, FieldType type);
+		PublicField(const std::string& name, const std::string& typeName, FieldType type);
 		PublicField(const PublicField&) = delete;
 		PublicField(PublicField&& other);
 		~PublicField();
@@ -77,6 +78,10 @@ namespace Hazel {
 		}
 
 		void SetStoredValueRaw(void* src);
+		void* GetStoredValueRaw() { return m_StoredValueBuffer; }
+
+		void SetRuntimeValueRaw(void* src);
+		void* GetRuntimeValueRaw();
 	private:
 		EntityInstance* m_EntityInstance;
 		MonoClassField* m_MonoClassField;

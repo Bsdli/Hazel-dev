@@ -15,6 +15,8 @@
 #include <string>
 
 #include "Hazel/Editor/SceneHierarchyPanel.h"
+#include "Hazel/Editor/ContentBrowserPanel.h"
+#include "Hazel/Editor/ObjectsPanel.h"
 
 namespace Hazel {
 
@@ -37,16 +39,6 @@ namespace Hazel {
 		virtual void OnEvent(Event& e) override;
 		bool OnKeyPressedEvent(KeyPressedEvent& e);
 		bool OnMouseButtonPressed(MouseButtonPressedEvent& e);
-
-		// ImGui UI helpers
-		bool Property(const std::string& name, bool& value);
-		bool Property(const std::string& name, float& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
-		bool Property(const std::string& name, glm::vec2& value, PropertyFlag flags);
-		bool Property(const std::string& name, glm::vec2& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
-		bool Property(const std::string& name, glm::vec3& value, PropertyFlag flags);
-		bool Property(const std::string& name, glm::vec3& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
-		bool Property(const std::string& name, glm::vec4& value, PropertyFlag flags);
-		bool Property(const std::string& name, glm::vec4& value, float min = -1.0f, float max = 1.0f, PropertyFlag flags = PropertyFlag::None);
 
 		void ShowBoundingBoxes(bool show, bool onTop = false);
 		void SelectEntity(Entity entity);
@@ -79,8 +71,10 @@ namespace Hazel {
 		float GetSnapValue();
 	private:
 		Scope<SceneHierarchyPanel> m_SceneHierarchyPanel;
+		Scope<ContentBrowserPanel> m_ContentBrowserPanel;
+		Scope<ObjectsPanel> m_ObjectsPanel;
 
-		Ref<Scene> m_RuntimeScene, m_EditorScene;
+		Ref<Scene> m_RuntimeScene, m_EditorScene, m_CurrentScene;
 		std::string m_SceneFilePath;
 		bool m_ReloadScriptOnPlay = true;
 
@@ -88,10 +82,6 @@ namespace Hazel {
 
 		Ref<Shader> m_BrushShader;
 		Ref<Material> m_SphereBaseMaterial;
-
-		Ref<Material> m_MeshMaterial;
-		std::vector<Ref<MaterialInstance>> m_MetalSphereMaterialInstances;
-		std::vector<Ref<MaterialInstance>> m_DielectricSphereMaterialInstances;
 
 		struct AlbedoInput
 		{
@@ -125,9 +115,6 @@ namespace Hazel {
 		};
 		//RoughnessInput m_RoughnessInput;
 
-		// PBR params
-		bool m_RadiancePrefilter = false;
-
 		float m_EnvMapRotation = 0.0f;
 
 		enum class SceneType : uint32_t
@@ -138,7 +125,7 @@ namespace Hazel {
 
 		// Editor resources
 		Ref<Texture2D> m_CheckerboardTex;
-		Ref<Texture2D> m_PlayButtonTex;
+		Ref<Texture2D> m_PlayButtonTex, m_StopButtonTex, m_PauseButtonTex;
 
 		glm::vec2 m_ViewportBounds[2];
 		int m_GizmoType = -1; // -1 = no gizmo
@@ -154,6 +141,9 @@ namespace Hazel {
 		bool m_ViewportPanelFocused = false;
 
 		bool m_ShowPhysicsSettings = false;
+
+		bool m_ShowWelcomePopup = true;
+		bool m_ShowAboutPopup = false;
 
 		enum class SceneState
 		{

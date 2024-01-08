@@ -2,7 +2,7 @@
 
 #include "Hazel/Core/Ref.h"
 
-#include "RendererAPI.h"
+#include "RendererTypes.h"
 
 namespace Hazel {
 

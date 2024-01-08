@@ -9,7 +9,7 @@ namespace Hazel {
 
 	void InitializeCore()
 	{
-		Hazel::Log::Init();
+		Log::Init();
 
 		HZ_CORE_TRACE("Hazel Engine {}", HAZEL_BUILD_ID);
 		HZ_CORE_TRACE("Initializing...");
@@ -18,6 +18,8 @@ namespace Hazel {
 	void ShutdownCore()
 	{
 		HZ_CORE_TRACE("Shutting down...");
+		
+		Log::Shutdown();
 	}
 
 }

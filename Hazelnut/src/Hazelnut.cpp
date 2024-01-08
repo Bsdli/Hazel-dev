@@ -3,6 +3,8 @@
 
 #include "EditorLayer.h"
 
+#include "Hazel/Renderer/RendererAPI.h"
+
 class HazelnutApplication : public Hazel::Application
 {
 public:
@@ -17,7 +19,8 @@ public:
 	}
 };
 
-Hazel::Application* Hazel::CreateApplication()
+Hazel::Application* Hazel::CreateApplication(int argc, char** argv)
 {
+	//RendererAPI::SetAPI(RendererAPIType::Vulkan);
 	return new HazelnutApplication({"Hazelnut", 1600, 900});
 }

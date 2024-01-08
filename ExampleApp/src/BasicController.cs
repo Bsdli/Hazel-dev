@@ -18,15 +18,13 @@ namespace Example
 
         public void OnUpdate(float ts)
         {
-            /*Matrix4 transform = GetTransform();
+            Vector3 playerTranslation = m_PlayerEntity.Translation;
 
-            Vector3 playerTranslation = m_PlayerEntity.GetTransform().Translation;
-            Vector3 translation = transform.Translation;
+            Vector3 translation = Translation;
             translation.XY = playerTranslation.XY;
             translation.Z = playerTranslation.Z + DistanceFromPlayer;
             translation.Y = Math.Max(translation.Y, 2.0f);
-            transform.Translation = translation;
-            SetTransform(transform);*/
+            Translation = translation;
         }
     }
 }

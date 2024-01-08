@@ -9,8 +9,6 @@ namespace Hazel {
 
 	LayerStack::~LayerStack()
 	{
-		for (Layer* layer : m_Layers)
-			delete layer;
 	}
 
 	void LayerStack::PushLayer(Layer* layer)

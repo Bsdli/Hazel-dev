@@ -63,6 +63,7 @@
     <Compile Include="src\PlayerCube.cs" />
     <Compile Include="src\PlayerSphere.cs" />
     <Compile Include="src\RandomColor.cs" />
+    <Compile Include="src\RuntimeMesh.cs" />
     <Compile Include="src\Script.cs" />
     <Compile Include="src\Sink.cs" />
   </ItemGroup>

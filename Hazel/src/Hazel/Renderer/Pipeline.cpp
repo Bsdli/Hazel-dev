@@ -4,6 +4,9 @@
 #include "Renderer.h"
 
 #include "Hazel/Platform/OpenGL/OpenGLPipeline.h"
+#include "Hazel/Platform/Vulkan/VulkanPipeline.h"
+
+#include "Hazel/Renderer/RendererAPI.h"
 
 namespace Hazel {
 
@@ -13,6 +16,7 @@ namespace Hazel {
 		{
 			case RendererAPIType::None:    return nullptr;
 			case RendererAPIType::OpenGL:  return Ref<OpenGLPipeline>::Create(spec);
+			case RendererAPIType::Vulkan:  return Ref<VulkanPipeline>::Create(spec);
 		}
 		HZ_CORE_ASSERT(false, "Unknown RendererAPI");
 		return nullptr;

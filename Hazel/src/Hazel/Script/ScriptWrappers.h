@@ -13,14 +13,6 @@ extern "C" {
 
 namespace Hazel { namespace Script {
 
-	struct ScriptTransform
-	{
-		glm::vec3 Translation;
-		glm::vec3 Rotation;
-		glm::vec3 Scale;
-		glm::vec3 Up, Right, Forward;
-	};
-
 	// Math
 	float Hazel_Noise_PerlinNoise(float x, float y);
 
@@ -45,8 +37,14 @@ namespace Hazel { namespace Script {
 	bool Hazel_Entity_HasComponent(uint64_t entityID, void* type);
 	uint64_t Hazel_Entity_FindEntityByTag(MonoString* tag);
 
-	void Hazel_TransformComponent_GetTransform(uint64_t entityID, ScriptTransform* outTransform);
-	void Hazel_TransformComponent_SetTransform(uint64_t entityID, ScriptTransform* inTransform);
+	void Hazel_TransformComponent_GetTransform(uint64_t entityID, TransformComponent* outTransform);
+	void Hazel_TransformComponent_SetTransform(uint64_t entityID, TransformComponent* inTransform);
+	void Hazel_TransformComponent_GetTranslation(uint64_t entityID, glm::vec3* outTranslation);
+	void Hazel_TransformComponent_SetTranslation(uint64_t entityID, glm::vec3* inTranslation);
+	void Hazel_TransformComponent_GetRotation(uint64_t entityID, glm::vec3* outRotation);
+	void Hazel_TransformComponent_SetRotation(uint64_t entityID, glm::vec3* inRotation);
+	void Hazel_TransformComponent_GetScale(uint64_t entityID, glm::vec3* outScale);
+	void Hazel_TransformComponent_SetScale(uint64_t entityID, glm::vec3* inScale);
 
 	void* Hazel_MeshComponent_GetMesh(uint64_t entityID);
 	void Hazel_MeshComponent_SetMesh(uint64_t entityID, Ref<Mesh>* inMesh);
@@ -78,17 +76,17 @@ namespace Hazel { namespace Script {
 	void Hazel_Material_SetFloat(Ref<Material>* _this, MonoString* uniform, float value);
 	void Hazel_Material_SetTexture(Ref<Material>* _this, MonoString* uniform, Ref<Texture2D>* texture);
 
-	void Hazel_MaterialInstance_Destructor(Ref<MaterialInstance>* _this);
-	void Hazel_MaterialInstance_SetFloat(Ref<MaterialInstance>* _this, MonoString* uniform, float value);
-	void Hazel_MaterialInstance_SetVector3(Ref<MaterialInstance>* _this, MonoString* uniform, glm::vec3* value);
-	void Hazel_MaterialInstance_SetVector4(Ref<MaterialInstance>* _this, MonoString* uniform, glm::vec4* value);
-	void Hazel_MaterialInstance_SetTexture(Ref<MaterialInstance>* _this, MonoString* uniform, Ref<Texture2D>* texture);
+	void Hazel_MaterialInstance_Destructor(Ref<Material>* _this);
+	void Hazel_MaterialInstance_SetFloat(Ref<Material>* _this, MonoString* uniform, float value);
+	void Hazel_MaterialInstance_SetVector3(Ref<Material>* _this, MonoString* uniform, glm::vec3* value);
+	void Hazel_MaterialInstance_SetVector4(Ref<Material>* _this, MonoString* uniform, glm::vec4* value);
+	void Hazel_MaterialInstance_SetTexture(Ref<Material>* _this, MonoString* uniform, Ref<Texture2D>* texture);
 
 	// Mesh
 	Ref<Mesh>* Hazel_Mesh_Constructor(MonoString* filepath);
 	void Hazel_Mesh_Destructor(Ref<Mesh>* _this);
 	Ref<Material>* Hazel_Mesh_GetMaterial(Ref<Mesh>* inMesh);
-	Ref<MaterialInstance>* Hazel_Mesh_GetMaterialByIndex(Ref<Mesh>* inMesh, int index);
+	Ref<Material>* Hazel_Mesh_GetMaterialByIndex(Ref<Mesh>* inMesh, int index);
 	int Hazel_Mesh_GetMaterialCount(Ref<Mesh>* inMesh);
 
 	void* Hazel_MeshFactory_CreatePlane(float width, float height);

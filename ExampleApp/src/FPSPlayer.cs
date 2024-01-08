@@ -8,8 +8,6 @@ namespace FPSExample
 		public float WalkingSpeed = 10.0F;
 		public float RunSpeed = 20.0F;
 		public float JumpForce = 50.0F;
-		public float CameraForwardOffset = 0.2F;
-		public float CameraYOffset = 0.85F;
 
 		[NonSerialized]
 		public float MouseSensitivity = 10.0F;
@@ -61,7 +59,6 @@ namespace FPSExample
 			UpdateRaycasting();
 			UpdateMovementInput();
 			UpdateRotation(ts);
-			UpdateCameraTransform();
 		}
 
 		private void UpdateMovementInput()
@@ -87,7 +84,7 @@ namespace FPSExample
 		private void UpdateRaycasting()
 		{
 			RaycastHit hitInfo;
-			if (Input.IsKeyPressed(KeyCode.H) && Physics.Raycast(m_CameraTransform.Position + (m_CameraTransform.Transform.Forward * 5.0F), m_CameraTransform.Transform.Forward, 20.0F, out hitInfo))
+			if (Input.IsKeyPressed(KeyCode.H) && Physics.Raycast(m_CameraTransform.Translation + (m_CameraTransform.Transform.Forward * 5.0F), m_CameraTransform.Transform.Forward, 20.0F, out hitInfo))
 			{
 				FindEntityByID(hitInfo.EntityID).GetComponent<MeshComponent>().Mesh.GetMaterial(0).Set("u_AlbedoColor", new Vector3(1.0f, 0.0f, 0.0f));
 			}
@@ -97,7 +94,7 @@ namespace FPSExample
 				// NOTE: The NonAlloc version of Overlap functions should be used when possible since it doesn't allocate a new array
 				//			whenever you call it. The normal versions allocates a brand new array every time.
 
-				int numColliders = Physics.OverlapBoxNonAlloc(m_Transform.Position, new Vector3(1.0F), colliders);
+				int numColliders = Physics.OverlapBoxNonAlloc(m_Transform.Translation, new Vector3(1.0F), colliders);
 
 				Console.WriteLine("Colliders: {0}", numColliders);
 
@@ -116,25 +113,28 @@ namespace FPSExample
 
 		private void UpdateRotation(float ts)
 		{
+			if (Input.GetCursorMode() != CursorMode.Locked)
+				return;
+
 			// TODO: Mouse position should be relative to the viewport
 			Vector2 currentMousePosition = Input.GetMousePosition();
 			Vector2 delta = m_LastMousePosition - currentMousePosition;
 			m_CurrentYMovement = delta.X * MouseSensitivity * ts;
-			float xRotation = delta.Y * MouseSensitivity * ts;
+			float xRotation = delta.Y * (MouseSensitivity * 0.05F) * ts;
 
-			if (delta.Y != 0.0F || delta.X != 0.0F)
+			if (xRotation != 0.0F)
 			{
-				m_CameraTransform.Rotation += new Vector3(xRotation, m_CurrentYMovement, 0.0F);
+				m_CameraTransform.Rotation += new Vector3(xRotation, 0.0F, 0.0F);
 			}
 
-			m_CameraTransform.Rotation = new Vector3(Mathf.Clamp(m_CameraTransform.Rotation.X, -80.0F, 80.0F), m_CameraTransform.Rotation.YZ);
-
+			m_CameraTransform.Rotation = new Vector3(Mathf.Clamp(m_CameraTransform.Rotation.X * Mathf.Rad2Deg, -80.0F, 80.0F), 0.0F, 0.0F) * Mathf.Deg2Rad;
 			m_LastMousePosition = currentMousePosition;
 		}
 
 		private void UpdateMovement()
 		{
-			m_RigidBody.Rotate(new Vector3(0.0F, m_CurrentYMovement, 0.0F));
+			m_RigidBody.Rotate(Vector3.Up * m_CurrentYMovement);
+			//m_RigidBody.AddTorque(Vector3.Up * m_CurrentYMovement, ForceMode.Impulse);
 
 			Vector3 movement = m_CameraTransform.Transform.Right * m_MovementDirection.X + m_CameraTransform.Transform.Forward * m_MovementDirection.Y;
 			movement.Normalize();
@@ -147,13 +147,6 @@ namespace FPSExample
 				m_RigidBody.AddForce(Vector3.Up * JumpForce, ForceMode.Impulse);
 				m_ShouldJump = false;
 			}
-		}
-
-		private void UpdateCameraTransform()
-		{
-			Vector3 position = m_Transform.Position + m_Transform.Transform.Forward * CameraForwardOffset;
-			position.Y = m_Transform.Position.Y + CameraYOffset;
-			m_CameraTransform.Position = position;
 		}
 	}
 }

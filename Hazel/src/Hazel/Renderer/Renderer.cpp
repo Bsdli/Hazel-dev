@@ -9,146 +9,197 @@
 #include "SceneRenderer.h"
 #include "Renderer2D.h"
 
+#include "Hazel/Platform/OpenGL/OpenGLRenderer.h"
+#include "Hazel/Platform/Vulkan/VulkanRenderer.h"
+
 namespace Hazel {
 
-	RendererAPIType RendererAPI::s_CurrentRendererAPI = RendererAPIType::OpenGL;
+	static std::unordered_map<size_t, Ref<Pipeline>> s_PipelineCache;
+
+	static RendererAPI* s_RendererAPI = nullptr;
+
+	struct ShaderDependencies
+	{
+		std::vector<Ref<Pipeline>> Pipelines;
+		std::vector<Ref<Material>> Materials;
+	};
+	static std::unordered_map<size_t, ShaderDependencies> s_ShaderDependencies;
+
+	void Renderer::RegisterShaderDependency(Ref<Shader> shader, Ref<Pipeline> pipeline)
+	{
+		s_ShaderDependencies[shader->GetHash()].Pipelines.push_back(pipeline);
+	}
+	
+	void Renderer::RegisterShaderDependency(Ref<Shader> shader, Ref<Material> material)
+	{
+		s_ShaderDependencies[shader->GetHash()].Materials.push_back(material);
+	}
+
+	void Renderer::OnShaderReloaded(size_t hash)
+	{
+		if (s_ShaderDependencies.find(hash) != s_ShaderDependencies.end())
+		{
+			auto& dependencies = s_ShaderDependencies.at(hash);
+			for (auto& pipeline : dependencies.Pipelines)
+			{
+				pipeline->Invalidate();
+			}
+
+			for (auto& material : dependencies.Materials)
+			{
+				material->Invalidate();
+			}
+		}
+	}
+
+	void RendererAPI::SetAPI(RendererAPIType api)
+	{	
+		// TODO: make sure this is called at a valid time
+		s_CurrentRendererAPI = api;
+	}
 
 	struct RendererData
 	{
-		Ref<RenderPass> m_ActiveRenderPass;
-		RenderCommandQueue m_CommandQueue;
+		RendererConfig Config;
+
 		Ref<ShaderLibrary> m_ShaderLibrary;
 
-		Ref<VertexBuffer> m_FullscreenQuadVertexBuffer;
-		Ref<IndexBuffer> m_FullscreenQuadIndexBuffer;
-		Ref<Pipeline> m_FullscreenQuadPipeline;
+		Ref<Texture2D> WhiteTexture;
+		Ref<TextureCube> BlackCubeTexture;
+		Ref<Environment> EmptyEnvironment;
 	};
 
-	static RendererData s_Data;
+	static RendererData* s_Data = nullptr;
+	static RenderCommandQueue* s_CommandQueue = nullptr;
+
+	static RendererAPI* InitRendererAPI()
+	{
+		switch (RendererAPI::Current())
+		{
+			case RendererAPIType::OpenGL: return new OpenGLRenderer();
+			case RendererAPIType::Vulkan: return new VulkanRenderer();
+		}
+		HZ_CORE_ASSERT(false, "Unknown RendererAPI");
+		return nullptr;
+	}
 	
 	void Renderer::Init()
 	{
-		s_Data.m_ShaderLibrary = Ref<ShaderLibrary>::Create();
-		Renderer::Submit([](){ RendererAPI::Init(); });
+		s_Data = new RendererData();
+		s_CommandQueue = new RenderCommandQueue();
+		s_RendererAPI = InitRendererAPI();
 
+		s_Data->m_ShaderLibrary = Ref<ShaderLibrary>::Create();
+
+		// Compute shaders
+		Renderer::GetShaderLibrary()->Load("assets/shaders/EnvironmentMipFilter.glsl");
+		Renderer::GetShaderLibrary()->Load("assets/shaders/EquirectangularToCubeMap.glsl");
+		Renderer::GetShaderLibrary()->Load("assets/shaders/EnvironmentIrradiance.glsl");
+		Renderer::GetShaderLibrary()->Load("assets/shaders/PreethamSky.glsl");
+
+		Renderer::GetShaderLibrary()->Load("assets/shaders/Grid.glsl");
+		Renderer::GetShaderLibrary()->Load("assets/shaders/SceneComposite.glsl");
 		Renderer::GetShaderLibrary()->Load("assets/shaders/HazelPBR_Static.glsl");
-		Renderer::GetShaderLibrary()->Load("assets/shaders/HazelPBR_Anim.glsl");
+		//Renderer::GetShaderLibrary()->Load("assets/shaders/HazelPBR_Anim.glsl");
+		//Renderer::GetShaderLibrary()->Load("assets/shaders/Outline.glsl");
+		Renderer::GetShaderLibrary()->Load("assets/shaders/Skybox.glsl");
+		Renderer::GetShaderLibrary()->Load("assets/shaders/ShadowMap.glsl");
 
+		// Compile shaders
+		Renderer::WaitAndRender();
+
+		uint32_t whiteTextureData = 0xffffffff;
+		s_Data->WhiteTexture = Texture2D::Create(ImageFormat::RGBA, 1, 1, &whiteTextureData);
+		
+		uint32_t blackTextureData[6] = { 0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xff000000 };
+		s_Data->BlackCubeTexture = TextureCube::Create(ImageFormat::RGBA, 1, 1, &blackTextureData);
+
+		s_Data->EmptyEnvironment = Ref<Environment>::Create(s_Data->BlackCubeTexture, s_Data->BlackCubeTexture);
+
+		s_RendererAPI->Init();
 		SceneRenderer::Init();
+	}
 
-		// Create fullscreen quad
-		float x = -1;
-		float y = -1;
-		float width = 2, height = 2;
-		struct QuadVertex
-		{
-			glm::vec3 Position;
-			glm::vec2 TexCoord;
-		};
+	void Renderer::Shutdown()
+	{
+		s_ShaderDependencies.clear();
+		SceneRenderer::Shutdown();
+		s_RendererAPI->Shutdown();
 
-		QuadVertex* data = new QuadVertex[4];
+		delete s_Data;
+		delete s_CommandQueue;
+	}
 
-		data[0].Position = glm::vec3(x, y, 0.1f);
-		data[0].TexCoord = glm::vec2(0, 0);
-
-		data[1].Position = glm::vec3(x + width, y, 0.1f);
-		data[1].TexCoord = glm::vec2(1, 0);
-
-		data[2].Position = glm::vec3(x + width, y + height, 0.1f);
-		data[2].TexCoord = glm::vec2(1, 1);
-
-		data[3].Position = glm::vec3(x, y + height, 0.1f);
-		data[3].TexCoord = glm::vec2(0, 1);
-
-		PipelineSpecification pipelineSpecification;
-		pipelineSpecification.Layout = {
-			{ ShaderDataType::Float3, "a_Position" },
-			{ ShaderDataType::Float2, "a_TexCoord" }
-		};
-		s_Data.m_FullscreenQuadPipeline = Pipeline::Create(pipelineSpecification);
-
-		s_Data.m_FullscreenQuadVertexBuffer = VertexBuffer::Create(data, 4 * sizeof(QuadVertex));
-		uint32_t indices[6] = { 0, 1, 2, 2, 3, 0, };
-		s_Data.m_FullscreenQuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
-
-		Renderer2D::Init();
+	RendererCapabilities& Renderer::GetCapabilities()
+	{
+		return s_RendererAPI->GetCapabilities();
 	}
 
 	Ref<ShaderLibrary> Renderer::GetShaderLibrary()
 	{
-		return s_Data.m_ShaderLibrary;
-	}
-
-	void Renderer::Clear()
-	{
-		Renderer::Submit([](){
-			RendererAPI::Clear(0.0f, 0.0f, 0.0f, 1.0f);
-		});
-	}
-
-	void Renderer::Clear(float r, float g, float b, float a)
-	{
-		Renderer::Submit([=]() {
-			RendererAPI::Clear(r, g, b, a);
-		});
-	}
-
-	void Renderer::ClearMagenta()
-	{
-		Clear(1, 0, 1);
-	}
-
-	void Renderer::SetClearColor(float r, float g, float b, float a)
-	{
-	}
-
-	void Renderer::DrawIndexed(uint32_t count, PrimitiveType type, bool depthTest)
-	{
-		Renderer::Submit([=]() {
-			RendererAPI::DrawIndexed(count, type, depthTest);
-		});
-	}
-
-	void Renderer::SetLineThickness(float thickness)
-	{
-		Renderer::Submit([=]() {
-			RendererAPI::SetLineThickness(thickness);
-		});
+		return s_Data->m_ShaderLibrary;
 	}
 
 	void Renderer::WaitAndRender()
 	{
-		s_Data.m_CommandQueue.Execute();
+		s_CommandQueue->Execute();
 	}
 
 	void Renderer::BeginRenderPass(Ref<RenderPass> renderPass, bool clear)
 	{
 		HZ_CORE_ASSERT(renderPass, "Render pass cannot be null!");
 
-		// TODO: Convert all of this into a render command buffer
-		s_Data.m_ActiveRenderPass = renderPass;
-		
-		renderPass->GetSpecification().TargetFramebuffer->Bind();
-		if (clear)
-		{
-			const glm::vec4& clearColor = renderPass->GetSpecification().TargetFramebuffer->GetSpecification().ClearColor;
-			Renderer::Submit([=]() {
-				RendererAPI::Clear(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
-			});
-		}
+		s_RendererAPI->BeginRenderPass(renderPass);
 	}
 
 	void Renderer::EndRenderPass()
 	{
-		HZ_CORE_ASSERT(s_Data.m_ActiveRenderPass, "No active render pass! Have you called Renderer::EndRenderPass twice?");
-		s_Data.m_ActiveRenderPass->GetSpecification().TargetFramebuffer->Unbind();
-		s_Data.m_ActiveRenderPass = nullptr;
+		s_RendererAPI->EndRenderPass();
 	}
 
-	void Renderer::SubmitQuad(Ref<MaterialInstance> material, const glm::mat4& transform)
+	void Renderer::BeginFrame()
 	{
-		bool depthTest = true;
-		bool cullFace = true;
+		s_RendererAPI->BeginFrame();
+	}
+
+	void Renderer::EndFrame()
+	{
+		s_RendererAPI->EndFrame();
+	}
+
+	void Renderer::SetSceneEnvironment(Ref<Environment> environment, Ref<Image2D> shadow)
+	{
+		s_RendererAPI->SetSceneEnvironment(environment, shadow);
+	}
+
+	std::pair<Ref<TextureCube>, Ref<TextureCube>> Renderer::CreateEnvironmentMap(const std::string& filepath)
+	{
+		return s_RendererAPI->CreateEnvironmentMap(filepath);
+	}
+
+	Ref<TextureCube> Renderer::CreatePreethamSky(float turbidity, float azimuth, float inclination)
+	{
+		return s_RendererAPI->CreatePreethamSky(turbidity, azimuth, inclination);
+	}
+
+	void Renderer::RenderMesh(Ref<Pipeline> pipeline, Ref<Mesh> mesh, const glm::mat4& transform)
+	{
+		s_RendererAPI->RenderMesh(pipeline, mesh, transform);
+	}
+
+	void Renderer::RenderMeshWithoutMaterial(Ref<Pipeline> pipeline, Ref<Mesh> mesh, const glm::mat4& transform)
+	{
+		s_RendererAPI->RenderMeshWithoutMaterial(pipeline, mesh, transform);
+	}
+
+	void Renderer::RenderQuad(Ref<Pipeline> pipeline, Ref<Material> material, const glm::mat4& transform)
+	{
+		s_RendererAPI->RenderQuad(pipeline, material, transform);
+	}
+
+	void Renderer::SubmitQuad(Ref<Material> material, const glm::mat4& transform)
+	{
+		/*bool depthTest = true;
 		if (material)
 		{
 			material->Bind();
@@ -156,109 +207,52 @@ namespace Hazel {
 			cullFace = !material->GetFlag(MaterialFlag::TwoSided);
 
 			auto shader = material->GetShader();
-			shader->SetMat4("u_Transform", transform);
+			shader->SetUniformBuffer("Transform", &transform, sizeof(glm::mat4));
 		}
-		
-		if (cullFace)
-			Renderer::Submit([]() { glEnable(GL_CULL_FACE); });
-		else
-			Renderer::Submit([]() { glDisable(GL_CULL_FACE); });
 
-		s_Data.m_FullscreenQuadVertexBuffer->Bind();
-		s_Data.m_FullscreenQuadPipeline->Bind();
-		s_Data.m_FullscreenQuadIndexBuffer->Bind();
-		Renderer::DrawIndexed(6, PrimitiveType::Triangles, depthTest);
+		s_Data->m_FullscreenQuadVertexBuffer->Bind();
+		s_Data->m_FullscreenQuadPipeline->Bind();
+		s_Data->m_FullscreenQuadIndexBuffer->Bind();
+		Renderer::DrawIndexed(6, PrimitiveType::Triangles, depthTest);*/
 	}
 
-	void Renderer::SubmitFullscreenQuad(Ref<MaterialInstance> material)
+	void Renderer::SubmitFullscreenQuad(Ref<Pipeline> pipeline, Ref<Material> material)
 	{
+		s_RendererAPI->SubmitFullscreenQuad(pipeline, material);
+	}
+
+#if 0
+	void Renderer::SubmitFullscreenQuad(Ref<Material> material)
+	{
+		// Retrieve pipeline from cache
+		auto& shader = material->GetShader();
+		auto hash = shader->GetHash();
+		if (s_PipelineCache.find(hash) == s_PipelineCache.end())
+		{
+			// Create pipeline
+			PipelineSpecification spec = s_Data->m_FullscreenQuadPipelineSpec;
+			spec.Shader = shader;
+			spec.DebugName = "Renderer-FullscreenQuad-" + shader->GetName();
+			s_PipelineCache[hash] = Pipeline::Create(spec);
+		}
+
+		auto& pipeline = s_PipelineCache[hash];
+
 		bool depthTest = true;
 		bool cullFace = true;
 		if (material)
 		{
-			material->Bind();
+			// material->Bind();
 			depthTest = material->GetFlag(MaterialFlag::DepthTest);
 			cullFace = !material->GetFlag(MaterialFlag::TwoSided);
 		}
 
-		s_Data.m_FullscreenQuadVertexBuffer->Bind();
-		s_Data.m_FullscreenQuadPipeline->Bind();
-		s_Data.m_FullscreenQuadIndexBuffer->Bind();
-
-		if (cullFace)
-			Renderer::Submit([]() { glEnable(GL_CULL_FACE); });
-		else
-			Renderer::Submit([]() { glDisable(GL_CULL_FACE); });
-
+		s_Data->FullscreenQuadVertexBuffer->Bind();
+		pipeline->Bind();
+		s_Data->FullscreenQuadIndexBuffer->Bind();
 		Renderer::DrawIndexed(6, PrimitiveType::Triangles, depthTest);
 	}
-
-	void Renderer::SubmitMesh(Ref<Mesh> mesh, const glm::mat4& transform, Ref<MaterialInstance> overrideMaterial)
-	{
-		// auto material = overrideMaterial ? overrideMaterial : mesh->GetMaterialInstance();
-		// auto shader = material->GetShader();
-		// TODO: Sort this out
-		mesh->m_VertexBuffer->Bind();
-		mesh->m_Pipeline->Bind();
-		mesh->m_IndexBuffer->Bind();
-
-		auto& materials = mesh->GetMaterials();
-		for (Submesh& submesh : mesh->m_Submeshes)
-		{
-			// Material
-			auto material = overrideMaterial ? overrideMaterial : materials[submesh.MaterialIndex];
-			auto shader = material->GetShader();
-			material->Bind();
-
-			if (mesh->m_IsAnimated)
-			{
-				for (size_t i = 0; i < mesh->m_BoneTransforms.size(); i++)
-				{
-					std::string uniformName = std::string("u_BoneTransforms[") + std::to_string(i) + std::string("]");
-					shader->SetMat4(uniformName, mesh->m_BoneTransforms[i]);
-				}
-			}
-			shader->SetMat4("u_Transform", transform * submesh.Transform);
-
-			Renderer::Submit([submesh, material]() {
-				if (material->GetFlag(MaterialFlag::DepthTest))	
-					glEnable(GL_DEPTH_TEST);
-				else
-					glDisable(GL_DEPTH_TEST);
-
-				if (!material->GetFlag(MaterialFlag::TwoSided))
-					Renderer::Submit([]() { glEnable(GL_CULL_FACE); });
-				else
-					Renderer::Submit([]() { glDisable(GL_CULL_FACE); });
-
-				glDrawElementsBaseVertex(GL_TRIANGLES, submesh.IndexCount, GL_UNSIGNED_INT, (void*)(sizeof(uint32_t) * submesh.BaseIndex), submesh.BaseVertex);
-			});
-		}
-	}
-
-	void Renderer::SubmitMeshWithShader(Ref<Mesh> mesh, const glm::mat4& transform, Ref<Shader> shader)
-	{
-		mesh->m_VertexBuffer->Bind();
-		mesh->m_Pipeline->Bind();
-		mesh->m_IndexBuffer->Bind();
-
-		for (Submesh& submesh : mesh->m_Submeshes)
-		{
-			if (mesh->m_IsAnimated)
-			{
-				for (size_t i = 0; i < mesh->m_BoneTransforms.size(); i++)
-				{
-					std::string uniformName = std::string("u_BoneTransforms[") + std::to_string(i) + std::string("]");
-					shader->SetMat4(uniformName, mesh->m_BoneTransforms[i]);
-				}
-			}
-			shader->SetMat4("u_Transform", transform * submesh.Transform);
-
-			Renderer::Submit([submesh]() {
-				glDrawElementsBaseVertex(GL_TRIANGLES, submesh.IndexCount, GL_UNSIGNED_INT, (void*)(sizeof(uint32_t) * submesh.BaseIndex), submesh.BaseVertex);
-			});
-		}
-	}
+#endif
 
 	void Renderer::DrawAABB(Ref<Mesh> mesh, const glm::mat4& transform, const glm::vec4& color)
 	{
@@ -298,9 +292,30 @@ namespace Hazel {
 			Renderer2D::DrawLine(corners[i], corners[i + 4], color);
 	}
 
+	Ref<Texture2D> Renderer::GetWhiteTexture()
+	{
+		return s_Data->WhiteTexture;
+	}
+
+	Ref<TextureCube> Renderer::GetBlackCubeTexture()
+	{
+		return s_Data->BlackCubeTexture;
+	}
+
+
+	Ref<Environment> Renderer::GetEmptyEnvironment()
+	{
+		return s_Data->EmptyEnvironment;
+	}
+
 	RenderCommandQueue& Renderer::GetRenderCommandQueue()
 	{
-		return s_Data.m_CommandQueue;
+		return *s_CommandQueue;
+	}
+
+	RendererConfig& Renderer::GetConfig()
+	{
+		return s_Data->Config;
 	}
 
 }

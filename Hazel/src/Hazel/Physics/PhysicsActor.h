@@ -52,12 +52,9 @@ namespace Hazel {
 	private:
 		Entity m_Entity;
 		RigidBodyComponent& m_RigidBody;
-		PhysicsMaterialComponent m_Material;
 
 		physx::PxRigidActor* m_ActorInternal;
 		std::unordered_map<int, std::vector<physx::PxShape*>> m_Shapes;
-
-		physx::PxMaterial* m_MaterialInternal;
 
 	private:
 		friend class Physics;

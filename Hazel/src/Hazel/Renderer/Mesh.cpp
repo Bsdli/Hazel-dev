@@ -21,13 +21,11 @@
 #include "Hazel/Renderer/Renderer.h"
 #include "Hazel/Renderer/VertexBuffer.h"
 
-#include "Hazel/Physics/PhysicsUtil.h"
-
 #include <filesystem>
 
 namespace Hazel {
 
-#define MESH_DEBUG_LOG 0
+#define MESH_DEBUG_LOG 1
 #if MESH_DEBUG_LOG
 #define HZ_MESH_LOG(...) HZ_CORE_TRACE(__VA_ARGS__)
 #else
@@ -67,7 +65,7 @@ namespace Hazel {
 
 		virtual void write(const char* message) override
 		{
-			HZ_CORE_WARN("Assimp: {0}", message);
+			HZ_CORE_ERROR("Assimp error: {0}", message);
 		}
 	};
 
@@ -88,8 +86,6 @@ namespace Hazel {
 
 		m_IsAnimated = scene->mAnimations != nullptr;
 		m_MeshShader = m_IsAnimated ? Renderer::GetShaderLibrary()->Get("HazelPBR_Anim") : Renderer::GetShaderLibrary()->Get("HazelPBR_Static");
-		m_BaseMaterial = Ref<Material>::Create(m_MeshShader);
-		// m_MaterialInstance = Ref<MaterialInstance>::Create(m_BaseMaterial);
 		m_InverseTransform = glm::inverse(Mat4FromAssimpMat4(scene->mRootNode->mTransformation));
 
 		uint32_t vertexCount = 0;
@@ -104,11 +100,11 @@ namespace Hazel {
 			submesh.BaseVertex = vertexCount;
 			submesh.BaseIndex = indexCount;
 			submesh.MaterialIndex = mesh->mMaterialIndex;
-			submesh.IndexCount = mesh->mNumFaces * 3;
 			submesh.VertexCount = mesh->mNumVertices;
+			submesh.IndexCount = mesh->mNumFaces * 3;
 			submesh.MeshName = mesh->mName.C_Str();
 
-			vertexCount += submesh.VertexCount;
+			vertexCount += mesh->mNumVertices;
 			indexCount += submesh.IndexCount;
 
 			HZ_CORE_ASSERT(mesh->HasPositions(), "Meshes require positions.");
@@ -175,8 +171,6 @@ namespace Hazel {
 				if (!m_IsAnimated)
 					m_TriangleCache[m].emplace_back(m_StaticVertices[index.V1 + submesh.BaseVertex], m_StaticVertices[index.V2 + submesh.BaseVertex], m_StaticVertices[index.V3 + submesh.BaseVertex]);
 			}
-
-			
 		}
 
 		TraverseNodes(scene->mRootNode);
@@ -228,21 +222,28 @@ namespace Hazel {
 
 			m_Textures.resize(scene->mNumMaterials);
 			m_Materials.resize(scene->mNumMaterials);
+
+			Ref<Texture2D> whiteTexture = Renderer::GetWhiteTexture();
+
 			for (uint32_t i = 0; i < scene->mNumMaterials; i++)
 			{
 				auto aiMaterial = scene->mMaterials[i];
 				auto aiMaterialName = aiMaterial->GetName();
 
-				auto mi = Ref<MaterialInstance>::Create(m_BaseMaterial, aiMaterialName.data);
+				auto mi = Material::Create(m_MeshShader, aiMaterialName.data);
 				m_Materials[i] = mi;
 
 				HZ_MESH_LOG("  {0} (Index = {1})", aiMaterialName.data, i);
 				aiString aiTexPath;
 				uint32_t textureCount = aiMaterial->GetTextureCount(aiTextureType_DIFFUSE);
 				HZ_MESH_LOG("    TextureCount = {0}", textureCount);
-
+				
+				glm::vec3 albedoColor(0.8f);
 				aiColor3D aiColor;
-				aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, aiColor);
+				if (aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, aiColor) == AI_SUCCESS)
+					albedoColor = { aiColor.r, aiColor.g, aiColor.b };
+
+				mi->Set("u_MaterialUniforms.AlbedoColor", albedoColor);
 
 				float shininess, metalness;
 				if (aiMaterial->Get(AI_MATKEY_SHININESS, shininess) != aiReturn_SUCCESS)
@@ -254,7 +255,9 @@ namespace Hazel {
 				float roughness = 1.0f - glm::sqrt(shininess / 100.0f);
 				HZ_MESH_LOG("    COLOR = {0}, {1}, {2}", aiColor.r, aiColor.g, aiColor.b);
 				HZ_MESH_LOG("    ROUGHNESS = {0}", roughness);
+				HZ_MESH_LOG("    METALNESS = {0}", metalness);
 				bool hasAlbedoMap = aiMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &aiTexPath) == AI_SUCCESS;
+				bool fallback = !hasAlbedoMap;
 				if (hasAlbedoMap)
 				{
 					// TODO: Temp - this should be handled by Hazel's filesystem
@@ -263,29 +266,32 @@ namespace Hazel {
 					parentPath /= std::string(aiTexPath.data);
 					std::string texturePath = parentPath.string();
 					HZ_MESH_LOG("    Albedo map path = {0}", texturePath);
-					auto texture = Texture2D::Create(texturePath, true);
+					TextureProperties props;
+					props.SRGB = true;
+					auto texture = Texture2D::Create(texturePath, props);
 					if (texture->Loaded())
 					{
 						m_Textures[i] = texture;
-						mi->Set("u_AlbedoTexture", m_Textures[i]);
-						mi->Set("u_AlbedoTexToggle", 1.0f);
+						mi->Set("u_AlbedoTexture", texture);
 					}
 					else
 					{
 						HZ_CORE_ERROR("Could not load texture: {0}", texturePath);
-						// Fallback to albedo color
-						mi->Set("u_AlbedoColor", glm::vec3{ aiColor.r, aiColor.g, aiColor.b });
+						fallback = true;
 					}
 				}
-				else
+
+				if (fallback)
 				{
-					mi->Set("u_AlbedoColor", glm::vec3 { aiColor.r, aiColor.g, aiColor.b });
 					HZ_MESH_LOG("    No albedo map");
+					mi->Set("u_AlbedoTexture", whiteTexture);
 				}
 
 				// Normal maps
-				mi->Set("u_NormalTexToggle", 0.0f);
-				if (aiMaterial->GetTexture(aiTextureType_NORMALS, 0, &aiTexPath) == AI_SUCCESS)
+				mi->Set("u_MaterialUniforms.UseNormalMap", (uint32_t)false);
+				bool hasNormalMap = aiMaterial->GetTexture(aiTextureType_NORMALS, 0, &aiTexPath) == AI_SUCCESS;
+				fallback = !hasNormalMap;
+				if (hasNormalMap)
 				{
 					// TODO: Temp - this should be handled by Hazel's filesystem
 					std::filesystem::path path = filename;
@@ -296,23 +302,27 @@ namespace Hazel {
 					auto texture = Texture2D::Create(texturePath);
 					if (texture->Loaded())
 					{
+						m_Textures.push_back(texture);
 						mi->Set("u_NormalTexture", texture);
-						mi->Set("u_NormalTexToggle", 1.0f);
+						mi->Set("u_MaterialUniforms.UseNormalMap", true);
 					}
 					else
 					{
 						HZ_CORE_ERROR("    Could not load texture: {0}", texturePath);
+						fallback = true;
 					}
 				}
-				else
+
+				if (fallback)
 				{
 					HZ_MESH_LOG("    No normal map");
+					mi->Set("u_NormalTexture", whiteTexture);
 				}
 
 				// Roughness map
-				// mi->Set("u_Roughness", 1.0f);
-				// mi->Set("u_RoughnessTexToggle", 0.0f);
-				if (aiMaterial->GetTexture(aiTextureType_SHININESS, 0, &aiTexPath) == AI_SUCCESS)
+				bool hasRoughnessMap = aiMaterial->GetTexture(aiTextureType_SHININESS, 0, &aiTexPath) == AI_SUCCESS;
+				fallback = !hasRoughnessMap;
+				if (hasRoughnessMap)
 				{
 					// TODO: Temp - this should be handled by Hazel's filesystem
 					std::filesystem::path path = filename;
@@ -323,18 +333,21 @@ namespace Hazel {
 					auto texture = Texture2D::Create(texturePath);
 					if (texture->Loaded())
 					{
+						m_Textures.push_back(texture);
 						mi->Set("u_RoughnessTexture", texture);
-						mi->Set("u_RoughnessTexToggle", 1.0f);
 					}
 					else
 					{
 						HZ_CORE_ERROR("    Could not load texture: {0}", texturePath);
+						fallback = true;
 					}
 				}
-				else
+
+				if (fallback)
 				{
 					HZ_MESH_LOG("    No roughness map");
-					mi->Set("u_Roughness", roughness);
+					mi->Set("u_RoughnessTexture", whiteTexture);
+					mi->Set("u_MaterialUniforms.Roughness", roughness);
 				}
 
 #if 0
@@ -367,9 +380,9 @@ namespace Hazel {
 #endif
 
 				bool metalnessTextureFound = false;
-				for (uint32_t i = 0; i < aiMaterial->mNumProperties; i++)
+				for (uint32_t p = 0; p < aiMaterial->mNumProperties; p++)
 				{
-					auto prop = aiMaterial->mProperties[i];
+					auto prop = aiMaterial->mProperties[p];
 
 #if DEBUG_PRINT_ALL_PROPS
 					HZ_MESH_LOG("Material Property:");
@@ -431,8 +444,6 @@ namespace Hazel {
 						std::string key = prop->mKey.data;
 						if (key == "$raw.ReflectionFactor|file")
 						{
-							metalnessTextureFound = true;
-
 							// TODO: Temp - this should be handled by Hazel's filesystem
 							std::filesystem::path path = filename;
 							auto parentPath = path.parent_path();
@@ -442,36 +453,48 @@ namespace Hazel {
 							auto texture = Texture2D::Create(texturePath);
 							if (texture->Loaded())
 							{
+								metalnessTextureFound = true;
+								m_Textures.push_back(texture);
 								mi->Set("u_MetalnessTexture", texture);
-								mi->Set("u_MetalnessTexToggle", 1.0f);
 							}
 							else
 							{
 								HZ_CORE_ERROR("    Could not load texture: {0}", texturePath);
-								mi->Set("u_Metalness", metalness);
-								mi->Set("u_MetalnessTexToggle", 0.0f);
 							}
 							break;
 						}
 					}
 				}
 
-				if (!metalnessTextureFound)
+				fallback = !metalnessTextureFound;
+				if (fallback)
 				{
 					HZ_MESH_LOG("    No metalness map");
+					mi->Set("u_MetalnessTexture", whiteTexture);
+					mi->Set("u_MaterialUniforms.Metalness", metalness);
 
-					mi->Set("u_Metalness", metalness);
-					mi->Set("u_MetalnessTexToggle", 0.0f);
 				}
 			}
 			HZ_MESH_LOG("------------------------");
 		}
+		else
+		{
+			auto mi = Material::Create(m_MeshShader, "Hazel-Default");
+			mi->Set("u_MaterialUniforms.AlbedoTexToggle", 0.0f);
+			mi->Set("u_MaterialUniforms.NormalTexToggle", 0.0f);
+			mi->Set("u_MaterialUniforms.MetalnessTexToggle", 0.0f);
+			mi->Set("u_MaterialUniforms.RoughnessTexToggle", 0.0f);
+			mi->Set("u_MaterialUniforms.AlbedoColor", glm::vec3(0.8f, 0.1f, 0.3f));
+			mi->Set("u_MaterialUniforms.Metalness", 0.0f);
+			mi->Set("u_MaterialUniforms.Roughness", 0.8f);
+			m_Materials.push_back(mi);
+		}
 
-		VertexBufferLayout vertexLayout;
+		
 		if (m_IsAnimated)
 		{
 			m_VertexBuffer = VertexBuffer::Create(m_AnimatedVertices.data(), m_AnimatedVertices.size() * sizeof(AnimatedVertex));
-			vertexLayout = {
+			m_VertexBufferLayout = {
 				{ ShaderDataType::Float3, "a_Position" },
 				{ ShaderDataType::Float3, "a_Normal" },
 				{ ShaderDataType::Float3, "a_Tangent" },
@@ -484,7 +507,7 @@ namespace Hazel {
 		else
 		{
 			m_VertexBuffer = VertexBuffer::Create(m_StaticVertices.data(), m_StaticVertices.size() * sizeof(Vertex));
-			vertexLayout = {
+			m_VertexBufferLayout = {
 				{ ShaderDataType::Float3, "a_Position" },
 				{ ShaderDataType::Float3, "a_Normal" },
 				{ ShaderDataType::Float3, "a_Tangent" },
@@ -494,10 +517,6 @@ namespace Hazel {
 		}
 
 		m_IndexBuffer = IndexBuffer::Create(m_Indices.data(), m_Indices.size() * sizeof(Index));
-
-		PipelineSpecification pipelineSpecification;
-		pipelineSpecification.Layout = vertexLayout;
-		m_Pipeline = Pipeline::Create(pipelineSpecification);
 	}
 
 	Mesh::Mesh(const std::vector<Vertex>& vertices, const std::vector<Index>& indices, const glm::mat4& transform)
@@ -512,16 +531,13 @@ namespace Hazel {
 
 		m_VertexBuffer = VertexBuffer::Create(m_StaticVertices.data(), m_StaticVertices.size() * sizeof(Vertex));
 		m_IndexBuffer = IndexBuffer::Create(m_Indices.data(), m_Indices.size() * sizeof(Index));
-
-		PipelineSpecification pipelineSpecification;
-		pipelineSpecification.Layout = {
+		m_VertexBufferLayout = {
 			{ ShaderDataType::Float3, "a_Position" },
 			{ ShaderDataType::Float3, "a_Normal" },
 			{ ShaderDataType::Float3, "a_Tangent" },
 			{ ShaderDataType::Float3, "a_Binormal" },
 			{ ShaderDataType::Float2, "a_TexCoord" },
 		};
-		m_Pipeline = Pipeline::Create(pipelineSpecification);
 	}
 
 	Mesh::~Mesh()
@@ -556,15 +572,13 @@ namespace Hazel {
 
 	void Mesh::TraverseNodes(aiNode* node, const glm::mat4& parentTransform, uint32_t level)
 	{
-		glm::mat4 localTransform = Mat4FromAssimpMat4(node->mTransformation);
-		glm::mat4 transform = parentTransform * localTransform;
+		glm::mat4 transform = parentTransform * Mat4FromAssimpMat4(node->mTransformation);
 		for (uint32_t i = 0; i < node->mNumMeshes; i++)
 		{
 			uint32_t mesh = node->mMeshes[i];
 			auto& submesh = m_Submeshes[mesh];
 			submesh.NodeName = node->mName.C_Str();
 			submesh.Transform = transform;
-			submesh.LocalTransform = localTransform;
 		}
 
 		// HZ_MESH_LOG("{0} {1}", LevelToSpaces(level), node->mName.C_Str());

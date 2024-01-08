@@ -31,6 +31,8 @@ namespace Hazel {
 	OpenGLPipeline::OpenGLPipeline(const PipelineSpecification& spec)
 		: m_Specification(spec)
 	{
+		HZ_CORE_ASSERT(spec.Shader);
+		HZ_CORE_ASSERT(spec.RenderPass);
 		Invalidate();
 	}
 

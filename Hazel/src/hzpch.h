@@ -14,6 +14,8 @@
 
 #include <fstream>
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+
 #include <Hazel/Core/Base.h>
 #include <Hazel/Core/Log.h>
 #include <Hazel/Core/Events/Event.h>

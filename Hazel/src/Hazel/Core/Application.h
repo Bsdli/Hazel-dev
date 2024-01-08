@@ -24,6 +24,7 @@ namespace Hazel {
 		virtual ~Application();
 
 		void Run();
+		void Close();
 
 		virtual void OnInit() {}
 		virtual void OnShutdown() {}
@@ -62,5 +63,5 @@ namespace Hazel {
 	};
 
 	// Implemented by CLIENT
-	Application* CreateApplication();
+	Application* CreateApplication(int argc, char** argv);
 }

@@ -2,6 +2,9 @@
 #include "Framebuffer.h"
 
 #include "Hazel/Platform/OpenGL/OpenGLFramebuffer.h"
+#include "Hazel/Platform/Vulkan/VulkanFramebuffer.h"
+
+#include "Hazel/Renderer/RendererAPI.h"
 
 namespace Hazel {
 
@@ -12,7 +15,8 @@ namespace Hazel {
 		switch (RendererAPI::Current())
 		{
 			case RendererAPIType::None:		return nullptr;
-			case RendererAPIType::OpenGL:	result = Ref<OpenGLFramebuffer>::Create(spec);
+			case RendererAPIType::OpenGL:	result = Ref<OpenGLFramebuffer>::Create(spec); break;
+			case RendererAPIType::Vulkan:	result = Ref<VulkanFramebuffer>::Create(spec); break;
 		}
 		FramebufferPool::GetGlobal()->Add(result);
 		return result;
@@ -22,7 +26,6 @@ namespace Hazel {
 
 	FramebufferPool::FramebufferPool(uint32_t maxFBs /* = 32 */)
 	{
-
 	}
 
 	FramebufferPool::~FramebufferPool()
